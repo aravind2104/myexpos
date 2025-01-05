@@ -1,13 +1,10 @@
 breakpoint;
-//user stack to kernal stack -- backup
+//User Stack to Kernel Stack
 [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 13] = SP; //logical address
 SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 11] * 512 - 1; 
-//since kernel mode newly entered- Kernel stack is empty
 backup;
-//now play ahead with reg values
 
-
-//get process id of current process
+//PID of current Process, and changing process table entries
 alias currentPID R0;
 currentPID = [SYSTEM_STATUS_TABLE + 1];
 alias process_table_entry R1;
@@ -18,7 +15,7 @@ process_table_entry = PROCESS_TABLE + currentPID * 16;
 [process_table_entry + 15] = PTLR;
 [process_table_entry + 4] = READY;
 
-//scheduling algo
+//Changing processes
 alias newPID R2;
 if(currentPID == 0) then
 	newPID =1;
@@ -26,11 +23,10 @@ else
 	newPID =0;
 endif;
 
-//to check
+//Interrupt test
 print "TIMER";
-//to check --end
 
-//restore sp, ptbr, ptlr
+//Restoring SP, PTBR, PTLR
 alias new_process_table R3;
 new_process_table = PROCESS_TABLE + newPID*16;
 SP = [new_process_table + 11] * 512 + [new_process_table + 12];//kptr
@@ -38,17 +34,17 @@ PTBR = [new_process_table + 14];
 PTLR = [new_process_table + 15];
 [SYSTEM_STATUS_TABLE + 1] = newPID;
 
-if([new_process_table + 4] == CREATED) then //nothing to restore
+//Initially Created, nothing to restore
+if([new_process_table + 4] == CREATED) then 
 	[new_process_table + 4] = RUNNING;
 	SP = [new_process_table + 13];
 	ireturn;
 endif;
-//else
-[new_process_table + 4] = RUNNING; // initially ready state
-restore;
-//no more using registers
 
-//kernel to user stack before exit 
+[new_process_table + 4] = RUNNING; //Initially READY
+restore;
+
+//Kernel stack to user stack 
 SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 13];
 breakpoint;
 ireturn;
