@@ -38,6 +38,7 @@ endif;
 
 SP = userSP;
 
+//Resetting mode flag to user program
 [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 0;
 
 ireturn;

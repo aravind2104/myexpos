@@ -1,0 +1,11 @@
+int main(){
+decl
+str name;
+int temp;
+enddecl
+begin
+name="Aravind";
+temp=exposcall("Write",-2,name);
+return 0;
+end
+}

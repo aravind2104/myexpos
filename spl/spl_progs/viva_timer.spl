@@ -1,0 +1,5 @@
+alias word R0;
+word = [SYSTEM_STATUS_TABLE+1];
+print word;
+
+ireturn; 
