@@ -1,0 +1,24 @@
+//Switch to Kernel Stack
+//Save value of SP to UTPR field of Process table entry of that process
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 13] = SP;
+//Set value of SP to beginning of User Area Page
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 +11]*512 -1;
+//Kernel will be empty when newly entering
+backup;
+
+//Get PID and change state
+alias curentPID R0;
+curentPID = [SYSTEM_STATUS_TABLE + 1];
+[PROCESS_TABLE + 16*curentPID + 4]=READY;
+
+//Calling Scheduler
+call MOD_5;
+
+//restore register context
+restore;
+//set SP as user stack pointer of new process
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 13];
+//set MODE_FLAG entry of current process to 0
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 0;
+
+ireturn;
