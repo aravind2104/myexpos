@@ -1,0 +1,27 @@
+int main(){
+decl
+int num1,num2,temp,flag;
+str s1;
+enddecl
+begin
+num1 = 2;
+s1 = "Prime Number";
+while(num1<=50) do
+    flag = 1;
+    num2 = 2;
+    while(num2 <= (num1/2)) do
+        if((num1%num2)==0) then
+            flag = 0;
+            break;
+        endif;
+        num2 = num2 + 1;
+    endwhile;
+    if(flag == 1) then
+        temp = exposcall("Write",-2,s1);
+	temp = exposcall("Write",-2,num1);
+    endif;
+    num1 = num1 + 1;
+endwhile;    
+return 0;
+end
+}
