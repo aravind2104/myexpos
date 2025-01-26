@@ -1,0 +1,20 @@
+alias functionNum R1;
+alias currentPID R2;
+alias word R3;
+
+if(functionNum == 3)then
+    multipush(R1,R2,R3,BP);
+    R1 = 8;
+    R2 = currentPID;
+    call MOD_0;
+    multipop(R1,R2,R3,BP);
+    print word;
+    multipush(R1,R2,R3,BP);
+    R1 = 9;
+    R2 = currentPID;
+    call MOD_0;
+    multipop(R1,R2,R3,BP);
+    return;
+endif;
+
+return;
