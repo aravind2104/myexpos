@@ -1,0 +1,46 @@
+//Memory Manager Module
+alias functionNum R1;
+
+//Get Free Page
+if(functionNum==1) then
+    [SYSTEM_STATUS_TABLE + 3] = [SYSTEM_STATUS_TABLE + 3] + 1;
+
+    while([SYSTEM_STATUS_TABLE + 2]==0) do
+        [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 4] = WAIT_MEM;
+        multipush(R1);
+        call MOD_5;
+        multipop(R1);
+    endwhile;
+
+    [SYSTEM_STATUS_TABLE + 3] = [SYSTEM_STATUS_TABLE + 3] - 1;
+    [SYSTEM_STATUS_TABLE + 2] = [SYSTEM_STATUS_TABLE + 2] - 1;
+    
+    R2 = 57*512;
+    while([R2]!=0) do 
+        R2 = R2 + 1;
+    endwhile;
+    [R2] = 1;
+    R0 = R2 - 57*512;
+    
+    return;
+endif;
+
+//Release Page
+if(functionNum == 2) then
+    alias pageNo R2;
+    [57*512 + pageNo] = [57*512 + pageNo] - 1;
+    if([57*512 + pageNo] == 0) then
+        [SYSTEM_STATUS_TABLE + 2] = [SYSTEM_STATUS_TABLE + 2] + 1;
+    endif;
+    R3 = 1;
+    while(R3<16) do
+        if([PROCESS_TABLE + R3*16 + 4]==WAIT_MEM) then
+            [PROCESS_TABLE + R3*16 + 4] = READY;
+        endif;
+        R3 = R3 + 1;
+    endwhile;
+
+    return;
+endif;
+
+return;
