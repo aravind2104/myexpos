@@ -1,0 +1,23 @@
+//Switch to kernel stack stack and back up register context;
+alias userSP R0;
+userSP = SP;
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 13] = SP;
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512 -1;
+backup;
+
+//Set STATUS field in Disk Status Table to 0
+[DISK_STATUS_TABLE] = 0;
+
+//Change process state from WAIT_DISK to READY
+R1 = 1;
+while(R1 < 16)do
+    if([PROCESS_TABLE + R1*16 + 4] == WAIT_DISK)then
+        [PROCESS_TABLE + R1*16 + 4] = READY;
+    endif;
+    R1 = R1 + 1;
+endwhile;
+
+//Restore context and return to user mode
+restore;
+SP = userSP;
+ireturn;

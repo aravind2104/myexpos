@@ -1,0 +1,60 @@
+alias functionNum R1;
+alias currentPID R2;
+
+//Disk Load
+if(functionNum == 2)then
+    alias pageNum R3;
+    alias blockNum R4;
+    multipush(R1,R2,R3,R4);
+    R1 = 3;
+    R2 = currentPID;
+    call MOD_0;
+    multipop(R1,R2,R3,R4);
+    //Reset the LOAD/STORE BIT, set PAGE NUMBER and BLOCK NUMBER in the Disk Status Table.
+    [DISK_STATUS_TABLE + 1] = 0;
+    [DISK_STATUS_TABLE + 2] = pageNum;
+    [DISK_STATUS_TABLE + 3] = blockNum;
+    //Issue the load statement to initiate a disk block to memory page DMA transfer.
+    load(pageNum,blockNum);
+    //Set the state of the process (with given PID) to WAIT_DISK and invoke the scheduler.
+    [PROCESS_TABLE + 16*currentPID + 4] = WAIT_DISK;
+    call MOD_5;
+    return;
+endif;
+
+//Terminal Write
+if(functionNum == 3)then
+    multipush(R1,R2,R3);
+    R1 = 8;
+    R2 = currentPID;
+    call MOD_0;
+    multipop(R1,R2,R3);
+    alias word R3;
+    print word;
+    multipush(R1,R2,R3);
+    R1 = 9;
+    R2 = currentPID;
+    call MOD_0;
+    multipop(R1,R2,R3);
+    return;
+endif;
+
+//Terminal Read
+if(functionNum == 4)then
+    multipush(R1,R2,R3);
+    R1 = 8;
+    R2 = currentPID;
+    call MOD_0;
+    multipop(R1,R2,R3);
+    read;
+    [PROCESS_TABLE + 16*currentPID + 4] = WAIT_TERMINAL;
+    //Invoking Context Switch Module
+    multipush(R1,R2,R3);
+    call MOD_5;
+    multipop(R1,R2,R3);
+    //Store the value present in input buffer field of process table to the obtained physical address of the word
+    [[PAGE_TABLE_BASE + 20*currentPID + 2*(R3/512)]*512 + (R3%512)] = [PROCESS_TABLE + 16*currentPID + 8];
+    return;
+endif;
+
+return;
