@@ -25,8 +25,8 @@ endwhile;
 //File is not present
 if(fileIndex==60) then
     [[PTBR + 2*((userSP-1)/512)]*512 + ((userSP-1)%512)] = -1;
-    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 +9] = 0;
     SP = userSP;
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 +9] = 0;
     ireturn;
 endif;
 
@@ -35,7 +35,7 @@ endif;
 //Call Exit Process function in Process Manager Module
 multipush(R0,R1,R2);
 R1 = 3;
-R2 = fileIndex;
+R2 = [SYSTEM_STATUS_TABLE + 1];
 call MOD_1;
 multipop(R0,R1,R2);
 
@@ -43,10 +43,8 @@ multipop(R0,R1,R2);
 //Reclaim same page by incrementing memory free list entry of user area page and decrementing MEM_FREE_COUNT
 alias usrAreaPage R3;
 usrAreaPage = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 11];
-if([MEMORY_FREE_LIST + usrAreaPage] == 0)then
-    [SYSTEM_STATUS_TABLE + 2] = [SYSTEM_STATUS_TABLE + 2] -1;
-endif;
 [MEMORY_FREE_LIST + usrAreaPage] = [MEMORY_FREE_LIST + usrAreaPage] + 1;
+[SYSTEM_STATUS_TABLE + 2] = [SYSTEM_STATUS_TABLE + 2] - 1;
 
 //Set the SP to the start of the user area page to intialize the kernel stack of the new process.
 SP = usrAreaPage*512 - 1;
@@ -55,7 +53,7 @@ SP = usrAreaPage*512 - 1;
 [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 4] = RUNNING;
 [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 7] = fileIndex;
 
-//Per Process Table, simply -1 for all entries
+//Per Process Resource Table, simply -1 for all entries
 alias i R4;
 i = 496;
 while(i < 512) do
@@ -72,16 +70,11 @@ endwhile;
 
 //(ii)Invoke the Get Free Page function to allocate 2 stack and 2 heap pages
 multipush(R0,R1,R2,R3);
-//Heap 1
-R1 = 1;
-call MOD_2;
-[PTBR+4] = R0;
-[PTBR+5] = "0110";
-//Heap 2
-R1=1;
-call MOD_2;
-[PTBR+6] = R0;
-[PTBR+7] = "0110";
+//Heap pages will be invalidated
+[PTBR+4] = -1;
+[PTBR+5] = "0000";
+[PTBR+6] = -1;
+[PTBR+7] = "0000";
 //Stack 1
 R1 = 1;
 call MOD_2;
@@ -98,41 +91,31 @@ multipop(R0,R1,R2,R3);
 //(iii)Find out the number of blocks occupied by the file from inode table. 
 //Allocate same number of code pages by invoking the Get Free Page function 
 //Update the page table entries.
-[PTBR+8] = -1;
-[PTBR+9] = "0000";
-[PTBR+10] = -1;
-[PTBR+11] = "0000";
-[PTBR+12] = -1;
-[PTBR+13] = "0000";
-[PTBR+14] = -1;
-[PTBR+15] = "0000";
-alias size R4;
-size = ([INODE_TABLE + 16*fileIndex +2]+511)/512;
-R0 = 8;
-while((R0-8)/2<size)do
-    multipush(R0,R1,R2,R3,R4);
+alias blockNo R4;
+alias pageEntry R5;
+R4 = 8;
+R5 = 8;
+while([INODE_TABLE + 16*fileIndex + blockNo]!= -1)do
+    if(blockNo>11)then
+        break;
+    endif;
+    multipush(R0,R1,R2,R3,R4,R5);
     R1 = 1;
     call MOD_2;
-    R5 = R0;
-    multipop(R0,R1,R2,R3,R4);
-    [PTBR + R0]=R5;
-    [PTBR + R0 + 1]="0100";
-    R0 = R0 + 2;
-endwhile;
-
-//Load the code blocks from disk to memory pages using loadi
-R0 = 0;
-while(R0<size) do 
-    R5 = [PTBR + 8 + 2*R0];
-    R6 = [INODE_TABLE + 16*fileIndex + 8 + R0];
-    multipush(R0,R1,R2,R3,R4);
+    [PTBR+pageEntry]=R0;
+    [PTBR+pageEntry+1]="0100";
+    multipop(R0,R1,R2,R3,R4,R5);
+    //loadi([PTBR+pageEntry],[INODE_TABLE + 16*fileIndex + blockNo]);
+    //Using DISK_LOAD from Device Manager instead of loadi function
+    multipush(R0,R1,R2,R3,R4,R5);
     R1 = 2;
     R2 = [SYSTEM_STATUS_TABLE + 1];
-    R3 = R5;
-    R4 = R6;
+    R3 = [PTBR + pageEntry];
+    R4 = [INODE_TABLE + 16*fileIndex + blockNo];
     call MOD_4;
-    multipop(R0,R1,R2,R3,R4);
-    R0=R0+1;
+    multipop(R0,R1,R2,R3,R4,R5);
+    blockNo = blockNo + 1;
+    pageEntry = pageEntry + 2;
 endwhile;
 
 //Store the entry point IP (present in the header of first code page) value on top of the user stack.
@@ -140,7 +123,6 @@ endwhile;
 
 //Change SP to user stack
 SP = 8*512; 
-[PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 13] = SP;
 //change the MODE FLAG back to user mode.
 [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1] + 9] = 0;
 
