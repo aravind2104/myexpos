@@ -1,0 +1,62 @@
+type
+ll
+{
+    int val;
+    ll next;
+}
+endtype
+
+int main()
+{
+    decl
+        int val;
+        int N;
+        ll head,node,node1;
+        ll prev,curr,next;
+        int dummy;
+    enddecl
+    begin
+        read(N);
+        dummy=initialize();
+        dummy=1;
+        head=null;
+        node=null;
+
+        while(dummy<=N) do
+            read(val);
+            if(node==null) then
+                head=alloc();
+                head.val=val;
+                head.next=null;
+                node=head;
+            else
+                node1=alloc();
+                node1.val=val;
+                node1.next=null;
+                node.next=node1;
+                node=node1;
+            endif;
+            dummy=dummy+1;
+        endwhile;
+
+        node = head;
+        prev = null;
+        curr = node;
+        while(curr!=null) do
+            next = curr.next;
+            curr.next = prev;
+            prev = curr;
+            curr = next;
+        endwhile;
+        head = prev;
+        
+        node=head;
+        while(node!=null)   do
+            write(node.val);
+            node1=node;
+            node=node.next;
+            free(node1);
+        endwhile;
+        return 1;
+    end
+}

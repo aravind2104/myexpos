@@ -1,0 +1,18 @@
+int main()
+{
+decl
+    int temp,pid;
+enddecl
+begin
+    temp = exposcall("Write",-2,"Forking");
+    pid = exposcall("Fork");
+    //Parent
+    if(pid > 0) then 
+        temp = exposcall("Exec","even.xsm");
+    //Child
+    else
+        temp = exposcall("Exec","odd.xsm");
+    endif;
+    return 0;
+end   
+}

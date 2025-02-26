@@ -1,3 +1,4 @@
+breakpoint;
 //Saving user SP in UTPR field
 [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 13] = SP;
 //Switch to Kernel Stack
@@ -19,5 +20,5 @@ restore;
 
 //Switch back to user Stack
 SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 13];
-
+breakpoint;
 ireturn;

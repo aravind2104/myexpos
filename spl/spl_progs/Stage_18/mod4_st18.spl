@@ -1,3 +1,4 @@
+breakpoint;
 alias functionNum R1;
 alias currentPID R2;
 
@@ -19,6 +20,7 @@ if(functionNum == 2)then
     //Set the state of the process (with given PID) to WAIT_DISK and invoke the scheduler.
     [PROCESS_TABLE + 16*currentPID + 4] = WAIT_DISK;
     call MOD_5;
+    breakpoint;
     return;
 endif;
 
@@ -36,6 +38,7 @@ if(functionNum == 3)then
     R2 = currentPID;
     call MOD_0;
     multipop(R1,R2,R3);
+    breakpoint;
     return;
 endif;
 
@@ -54,6 +57,7 @@ if(functionNum == 4)then
     multipop(R1,R2,R3);
     //Store the value present in input buffer field of process table to the obtained physical address of the word
     [[PAGE_TABLE_BASE + 20*currentPID + 2*(R3/512)]*512 + (R3%512)] = [PROCESS_TABLE + 16*currentPID + 8];
+    breakpoint;
     return;
 endif;
 

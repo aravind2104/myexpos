@@ -1,0 +1,20 @@
+breakpoint;
+//Set Mode Flag to system call number 10
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 10;
+
+//Switch to Kernel Stack
+alias userSP R2;
+userSP = SP;
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 13] = SP;
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512 - 1;
+
+//Exit Process in Process Manager
+multipush(R1,R2);
+R1 = 3;
+R2 = [SYSTEM_STATUS_TABLE + 1];
+call MOD_1;
+multipop(R1,R2);
+
+//Invoke the Scheduler
+call MOD_5;
+

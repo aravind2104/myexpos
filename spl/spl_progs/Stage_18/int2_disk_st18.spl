@@ -1,10 +1,8 @@
 //Switch to kernel stack stack and back up register context;
-alias userSP R0;
-userSP = SP;
+breakpoint;
 [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 13] = SP;
 SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512 -1;
 backup;
-
 //Set STATUS field in Disk Status Table to 0
 [DISK_STATUS_TABLE] = 0;
 
@@ -19,5 +17,6 @@ endwhile;
 
 //Restore context and return to user mode
 restore;
-SP = userSP;
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 13];
+breakpoint;
 ireturn;

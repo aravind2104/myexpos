@@ -1,3 +1,4 @@
+breakpoint;
 alias functionNum R1;
 alias currentPID R2;
 
@@ -11,6 +12,7 @@ if(functionNum==3)then
     endwhile;
     [DISK_STATUS_TABLE] = 1;
     [DISK_STATUS_TABLE + 4] = currentPID;
+    breakpoint;
     return;
 endif;
 

@@ -1,0 +1,150 @@
+breakpoint;
+//Set Mode Flag to system call number 8
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 8;
+
+//Switch to Kernel Stack
+alias userSP R2;
+userSP = SP;
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 13] = SP;
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512 - 1;
+
+//Get PCB Entry
+R1 = GET_PCB_ENTRY;
+multipush(R2);
+call MOD_1; //Process Manager
+multipop(R2);
+
+//Index of child
+alias childPID R3;
+R3 = R0;
+
+//If free PCB not avaialble
+if(childPID==-1) then
+    //Store -1 as return value in the stack
+    R1 = userSP - 1;
+    [[PAGE_TABLE_BASE + 20*[SYSTEM_STATUS_TABLE + 1] + (R1/512)*2]*512 + (R1%512)] = -1;
+    //Reset Mode Flag to 0
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 0;
+    //Switch to user stack and return to user Mode
+    SP = userSP;
+    breakpoint;
+    ireturn;
+endif;
+
+//If Heap pages not allocated for parent Process
+if([PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE+1]*20 + 4]==-1)then
+    multipush(R1,R2,R3);
+    R1 = GET_FREE_PAGE; //Function 1
+    call MOD_2; //Memory Manager
+    [PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE + 1]*20 + 4] = R0;
+    [PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE + 1]*20 + 5] = "1110";
+    R1 = GET_FREE_PAGE;
+    call MOD_2;
+    [PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE + 1]*20 + 6] = R0;
+    [PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE + 1]*20 + 7] = "1110";
+    multipop(R1,R2,R3);
+endif;
+
+//Allocate Stack Pages and User Area Page for child process
+multipush(R0,R1,R2);
+multipush(R3);
+R1 = GET_FREE_PAGE;
+call MOD_2;
+multipop(R3);
+[PAGE_TABLE_BASE + childPID*20 + 16] = R0;
+[PAGE_TABLE_BASE + childPID*20 + 17] = [PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE+1]*20 + 17];
+multipush(R3);
+R1 = GET_FREE_PAGE;
+call MOD_2;
+multipop(R3);
+[PAGE_TABLE_BASE + childPID*20 + 18] = R0;
+[PAGE_TABLE_BASE + childPID*20 + 19] = [PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE+1]*20 + 19];
+
+multipush(R3);
+R1 = GET_FREE_PAGE;
+call MOD_2;
+multipop(R3);
+[PROCESS_TABLE + childPID*16 + 11] = R0;
+multipop(R0,R1,R2);
+
+//Process Table of Child Process
+//TICK
+[PROCESS_TABLE + childPID*16] = 0;
+//PPID
+[PROCESS_TABLE + childPID*16 + 2] = [SYSTEM_STATUS_TABLE + 1];
+//UserID
+[PROCESS_TABLE + childPID*16 + 3] = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 3];
+//Process State
+[PROCESS_TABLE + childPID*16 + 4] = CREATED;
+//Swap Flag
+[PROCESS_TABLE + childPID*16 + 6] = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 6];
+//Inode Index
+[PROCESS_TABLE + childPID*16 + 7] = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 7];
+//Mode Flag
+[PROCESS_TABLE + childPID*16 + 9] = 0;
+//User Area Swap Status
+[PROCESS_TABLE + childPID*16 + 10] = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 10];
+//KPTR
+[PROCESS_TABLE + childPID*16 + 12] = 0;
+//UPTR
+[PROCESS_TABLE + childPID*16 + 13] = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 13];
+
+//PID, PTBR and PTLR fields are initialized in the GET_PCB_ENTRY Function
+
+//Copying entries of per-process resource table of parent to child
+//PER PROCESS RESOURCE TABLE 
+
+//Copying entries of per-process disk map table of parent to child
+//PER PROCESS DISK MAP TABLE
+R4 = 0;
+while(R4<10) do
+    [DISK_MAP_TABLE + childPID*10 + R4] = [DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + R4];
+    R4 = R4 + 1;
+endwhile;
+
+//Page Table of Child Process
+//Library, Heap and Code (0-15)
+R4 = 0; 
+while(R4<16) do
+    [PAGE_TABLE_BASE + childPID*20 + R4] = [PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE + 1]*20 + R4];
+    if(R4%2==0) then
+        [MEMORY_FREE_LIST + [PAGE_TABLE_BASE + childPID*20 + R4]] = [MEMORY_FREE_LIST + [PAGE_TABLE_BASE + childPID*20 + R4]] + 1;
+    endif;
+    R4 = R4 + 1;
+endwhile;
+
+//Stack
+//Stack pages were initialized earlier
+//Copy content of user stack pages of parent to child word by word
+R4 = 0;
+alias childStack R5;
+alias parentStack R6;
+R5 = [PAGE_TABLE_BASE + childPID*20 + 16]*512;
+R6 = [PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE + 1]*20 + 16]*512;
+while(R4<512) do
+    [R5 + R4] = [R6 + R4];
+    R4 = R4 + 1;
+endwhile;
+R4 = 0;
+R5 = [PAGE_TABLE_BASE + childPID*20 + 18]*512;
+R6 = [PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE + 1]*20 + 18]*512;
+while(R4<512) do
+    [R5 + R4] = [R6 + R4];
+    R4 = R4 + 1;
+endwhile;
+
+//Store value of BP on top of Kernel Stack of child
+[[PROCESS_TABLE + childPID*16 + 11]*512] = BP;
+
+//Set up return values in user Stacks
+R1 = userSP - 1;
+[[PAGE_TABLE_BASE + 20*[SYSTEM_STATUS_TABLE + 1] + (R1/512)*2]*512 + (R1%512)] = childPID; //User Stack of parent
+[[PAGE_TABLE_BASE + 20*childPID + (R1/512)*2]*512 + (R1%512)] = 0; //User Stack of Child
+
+//Reset Mode flag of Parent process
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 0;
+
+//Switch to user Stack and return to user Mode
+SP = userSP;
+breakpoint;
+ireturn;

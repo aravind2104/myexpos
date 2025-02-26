@@ -1,4 +1,5 @@
 //Set the MODE FLAG in the process table of the current process to the system call number which is 7 for read system call.
+breakpoint;
 [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1]*16) + 9] = 7;
 
 alias userSP R0;
@@ -41,6 +42,7 @@ endif;
 SP = userSP;
 
 //Return to user mode
+breakpoint;
 ireturn;
 
 
