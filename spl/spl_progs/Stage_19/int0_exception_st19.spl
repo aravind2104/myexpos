@@ -43,10 +43,14 @@ else
 multipush(R0,R1,R2);
 R1 = 1;
 call MOD_2;
+print "Heap Page Allocated";
+print R0;
 [PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE + 1]*20 + 4] = R0;
 [PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE + 1]*20 + 5] = "1110";
 R1 = 1;
 call MOD_2;
+print "Heap Page Allocated";
+print R0;
 [PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE + 1]*20 + 6] = R0;
 [PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE + 1]*20 + 7] = "1110";
 multipop(R0,R1,R2);
