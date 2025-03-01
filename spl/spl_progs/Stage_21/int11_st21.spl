@@ -1,0 +1,82 @@
+//Extract System Call Number(SP-5)
+alias userSP R2;
+userSP = SP;
+alias syscallNo R3;
+syscallNo = [[PTBR + ((userSP-5)/512)*2]*512 + (userSP-5)%512];
+
+//Change to Kernel Stack
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 13] = userSP;
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512 - 1;
+
+//Getpid
+if(syscallNo == 11) then 
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 11;
+    //Set PID as return value in stack
+    [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = [SYSTEM_STATUS_TABLE + 1];
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 0;
+    SP = userSP;
+    ireturn;
+endif;
+
+//Getppid
+if(syscallNo == 12) then
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 12;
+    //Set PPID as return value in stack
+    [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 2];
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 0;
+    SP = userSP;
+    ireturn;
+endif;
+
+//Wait
+if(syscallNo == 13) then
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 13;
+    //Extract PID from User Stack
+    alias waitPID R4;
+    waitPID = [[PTBR + ((userSP-4)/512)*2]*512 + (userSP-4)%512];
+    //Check for validity, Not wait for itself or a Terminated Process
+    if(waitPID == [SYSTEM_STATUS_TABLE + 1] || [PROCESS_TABLE + waitPID*16 + 4] == TERMINATED) then
+        //Return to user mode, with -1 as return value and reset MODE Flag
+        [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = -1;
+        [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 0;
+        SP = userSP;
+        ireturn;
+    endif;
+    //Set state from READY to (WAIT_PROCESS,waitPID)
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 4] = WAIT_PROCESS;
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 5] = waitPID;
+    //Invoke the Scheduler
+    multipush(R0,R1,R2,R3,R4);
+    call MOD_5;
+    multipop(R0,R1,R2,R3,R4);
+    //Reset Mode Flag and store 0 as return value in user stack
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 0;
+    [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = 0;
+    //Change to user stack and return to user mode
+    SP = userSP;
+    ireturn;
+endif;
+
+//Signal
+if(syscallNo == 14) then
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 14;
+    R4 = 0;
+    //Set state from (WAIT_PROCESS,currentPID) to READY
+    while(R4<16) do
+        if([PROCESS_TABLE + R4*16 + 4] == WAIT_PROCESS && [PROCESS_TABLE + R4*16 + 5] == [SYSTEM_STATUS_TABLE + 1]) then
+            [PROCESS_TABLE + R4*16 + 4] = READY;
+            [PROCESS_TABLE + R4*16 + 5] = -1;
+            R4 = R4 + 1;
+        endif;
+    endwhile;
+    //Reset Mode Flag and store 0 as return value in user stack
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 0;
+    [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = 0;
+    //Change Stack to user stack and return to user mode
+    SP = userSP;
+    ireturn;
+endif;
+
+//Change back to user stack and return to user mode
+SP = userSP;
+ireturn;
