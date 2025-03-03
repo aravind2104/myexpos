@@ -1,0 +1,99 @@
+//Extract System call no
+breakpoint;
+alias userSP R2;
+userSP = SP;
+alias syscallNo R3;
+syscallNo = [[PTBR + ((userSP-5)/512)*2]*512 + (userSP-5)%512];
+
+//Change to Kernel Stack
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 13] = userSP;
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512 - 1;
+
+//SemLock System Call (Syscall 19)
+if(syscallNo == 19)then
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 19;
+    //Extract Semaphore Descriptor from user Satck
+    alias semDesc R4;
+    semDesc = [[PTBR + ((userSP - 4)/512)*2]*512 + (userSP-4)%512];
+    //semDesc is invalid, return -1 in user stack, and return to user mode
+    if(semDesc < 0 || semDesc > 7 || [[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512 + 496 + semDesc*2] != SEMAPHORE) then
+        [[PTBR + ((userSP - 1)/512)*2]*512 + (userSP - 1)%512] = -1;
+        [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 0;
+        SP = userSP;
+        breakpoint;
+        ireturn;
+    endif;
+    //While semaphore is locked by another, change state to Wait Semaphore and invoke scheduler
+    alias semTableEntry R5;
+    semTableEntry = [[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512 + 496 + semDesc*2 + 1];
+    while(([SEMAPHORE_TABLE + semTableEntry*4]!=-1) && ([SEMAPHORE_TABLE + semTableEntry*4]!=[SYSTEM_STATUS_TABLE + 1]))do
+        [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 4] = WAIT_SEMAPHORE;
+        [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 5] = semTableEntry;
+        multipush(R0,R1,R2,R3,R4,R5);
+        call MOD_5; //Invoke scheduler
+        multipop(R0,R1,R2,R3,R4,R5);
+    endwhile;
+
+    //Once Free, Change Locking PID
+    [SEMAPHORE_TABLE + semTableEntry*4] = [SYSTEM_STATUS_TABLE + 1];
+    //Reset mode flag and switch back to user stack
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 0;
+    SP = userSP;
+    //Return 0 in user stack
+    [[PTBR + ((userSP - 1)/512)*2]*512 + (userSP - 1)%512] = 0;
+    breakpoint;
+    ireturn;
+endif;
+
+//SemUnLock System Call (Syscall 20)
+if(syscallNo == 20) then
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 20;
+    //Extract Semaphore Descriptor from user Satck
+    alias semDesc R4;
+    semDesc = [[PTBR + ((userSP - 4)/512)*2]*512 + (userSP-4)%512];
+    //if descriptor is invalid, or invalid entry in Per Process Resource Table return -1
+    if(semDesc < 0 || semDesc > 7 || [[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]* 16 + 11]*512 + 496 + semDesc*2] != SEMAPHORE)then
+        [[PTBR + ((userSP - 1)/512)*2]*512 + (userSP - 1)%512] = -1;
+        [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 0;
+        SP = userSP;
+        breakpoint;
+        ireturn;
+    endif; 
+    alias semTableEntry R5;
+    semTableEntry = [[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512 + 496 + semDesc*2 + 1];
+    //If semaphore is locked
+    if([SEMAPHORE_TABLE + semTableEntry*4] != -1)then
+        //If it is not current process, return -2
+        if([SEMAPHORE_TABLE + semTableEntry*4] != [SYSTEM_STATUS_TABLE + 1])then
+            [[PTBR + ((userSP - 1)/512)*2]*512 + (userSP - 1)%512] = -2;
+            [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 0;
+            SP = userSP;
+            breakpoint;
+            ireturn;
+        endif;
+        //Unlock Semaphore, set Locking PID to -1
+        [SEMAPHORE_TABLE + semTableEntry*4] = -1;
+        //Wake all processes waiting on Semaphore
+        R6 = 0;
+        while(R6 < 16)do
+            if([PROCESS_TABLE + R6*16 + 4]==WAIT_SEMAPHORE && [PROCESS_TABLE + R6*16 + 5] == semTableEntry) then
+                [PROCESS_TABLE + R6*16 + 4] = READY;
+                [PROCESS_TABLE + R6*16 + 5] = -1;
+            endif;
+            R6 = R6 + 1;
+        endwhile;
+    endif;
+    //Reset mode flag and switch back to user stack
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 0;
+    SP = userSP;
+    //Return 0 in user stack
+    [[PTBR + ((userSP - 1)/512)*2]*512 + (userSP - 1)%512] = 0;
+    breakpoint;
+    ireturn;
+endif;
+
+//Change back to user stack and return to user mode
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 0;
+SP = userSP;
+breakpoint;
+ireturn;

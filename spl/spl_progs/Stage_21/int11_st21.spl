@@ -1,4 +1,5 @@
 //Extract System Call Number(SP-5)
+breakpoint;
 alias userSP R2;
 userSP = SP;
 alias syscallNo R3;
@@ -15,6 +16,7 @@ if(syscallNo == 11) then
     [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = [SYSTEM_STATUS_TABLE + 1];
     [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 0;
     SP = userSP;
+    breakpoint;
     ireturn;
 endif;
 
@@ -25,6 +27,7 @@ if(syscallNo == 12) then
     [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 2];
     [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 0;
     SP = userSP;
+    breakpoint;
     ireturn;
 endif;
 
@@ -40,6 +43,7 @@ if(syscallNo == 13) then
         [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = -1;
         [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 0;
         SP = userSP;
+        breakpoint;
         ireturn;
     endif;
     //Set state from READY to (WAIT_PROCESS,waitPID)
@@ -54,6 +58,7 @@ if(syscallNo == 13) then
     [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = 0;
     //Change to user stack and return to user mode
     SP = userSP;
+    breakpoint;
     ireturn;
 endif;
 
@@ -74,9 +79,11 @@ if(syscallNo == 14) then
     [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = 0;
     //Change Stack to user stack and return to user mode
     SP = userSP;
+    breakpoint;
     ireturn;
 endif;
 
 //Change back to user stack and return to user mode
 SP = userSP;
+breakpoint;
 ireturn;

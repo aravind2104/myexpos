@@ -1,0 +1,102 @@
+//Extract System call no
+breakpoint;
+alias userSP R2;
+userSP = SP;
+alias syscallNo R3;
+syscallNo = [[PTBR + ((userSP-5)/512)*2]*512 + (userSP-5)%512];
+
+//Change to Kernel Stack
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 13] = userSP;
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512 - 1;
+
+//Semget System call
+if(syscallNo == 17) then
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 17;
+    alias freeEntry R4;
+    freeEntry = 0;
+    while(freeEntry < 8)do
+        if([[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512 + 496 + R4*2] == -1)then
+            break;
+        endif;
+        freeEntry = freeEntry + 1;
+    endwhile;
+    //if no free Entry, then return -1
+    if(freeEntry == 8) then
+        [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = -1;
+        [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 0;
+        SP = userSP;
+        breakpoint;
+        ireturn;
+    endif;
+    //Set Resource Identifier field of Per Process Table Entry as 1 to indicate Semaphore
+    [[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512 + 496 + freeEntry*2] = SEMAPHORE;
+    //Acquire Semaphore using Resource Manager Module function
+    multipush(R1,R2,R3,R4);
+    R1 = ACQUIRE_SEMAPHORE; //function number 6
+    R2 = [SYSTEM_STATUS_TABLE + 1];
+    call MOD_0;
+    multipop(R1,R2,R3,R4);
+
+    //If no free Semaphores, return -2;
+    if(R0 == -1) then
+        [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = -2;
+        [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 0;
+        SP = userSP;
+        breakpoint;
+        ireturn;
+    endif;
+
+    //Store index of Semaphore Table entry in Per Process Table
+    [[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512 + 496 + freeEntry*2 + 1] = R0;
+
+    //Switch back to user stack and reset mode flag
+    SP = userSP;
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 0;
+    //Return Per Process Resource Table entry index
+    [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = freeEntry;
+    breakpoint;
+    ireturn;
+endif;
+
+//Semrelease System Call
+if(syscallNo == 18) then
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 18;
+    //Extract Semaphore Descriptor
+    alias semDesc R4;
+    semDesc = [[PTBR + ((userSP-4)/512)*2]*512 + (userSP-4)%512];
+    
+    //If Semaphore descriptor is not valid, return -1
+    if(semDesc < 0 || semDesc > 7 || [[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512 + 496 + semDesc*2] != SEMAPHORE) then
+        [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = -1;
+        [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 0;
+        SP = userSP;
+        breakpoint;
+        ireturn;
+    endif;
+    
+    //Invoke Release Semaphore
+    multipush(R1,R2,R3,R4);
+    R1 = RELEASE_SEMAPHORE; //function number 7
+    R2 = [[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512 + 496 + semDesc*2 + 1];
+    R3 = [SYSTEM_STATUS_TABLE + 1];
+    call MOD_0; //Resource Manager
+    multipop(R1,R2,R3,R4);
+
+    //Invalidate Per-Process Table Entry(-1)
+    [[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512 + 496 + semDesc*2] = -1;
+    [[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512 + 496 + semDesc*2 + 1] = -1;
+
+    //Switch to user Stack and reset Mode flag
+    SP = userSP;
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 0;
+    //Return 0
+    [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = 0;
+    breakpoint;
+    ireturn;
+endif;
+
+//Reset Mode Flag,Change back to user mode and return to user mode
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 0;
+SP = userSP;
+breakpoint;
+ireturn;
