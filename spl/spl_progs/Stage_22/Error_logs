@@ -1,3 +1,10 @@
 1. Copying of Per Process Resource Table was not proper
 2. While loop not incrementing
 3. 2nd code page not loaded, 3rd directly loaded
+3rd one not a problem
+4. Error 1 again in copying,and updating semaphore Table
+5. Problem when 15 scheduled for first time, BP related issue, need to check Mod5 and INT8;
+   Problem was R7 value changed, hence the  Process Table entries of child was not properly made
+Assignment 3 problems fixed
+
+Assignment 2 problems persist, need to fix

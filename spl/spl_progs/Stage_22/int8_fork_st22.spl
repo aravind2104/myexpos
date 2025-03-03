@@ -12,9 +12,9 @@ SP = [ptEntry + 11]*512 - 1;
 
 //Get PCB Entry
 R1 = GET_PCB_ENTRY;
-multipush(R2);
+multipush(R2,R7);
 call MOD_1; //Process Manager
-multipop(R2);
+multipop(R2,R7);
 
 //Index of child
 alias childPID R3;
@@ -37,11 +37,15 @@ endif;
 if([PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE+1]*20 + 4]==-1)then
     multipush(R1,R2,R3);
     R1 = GET_FREE_PAGE; //Function 1
+    multipush(R7);
     call MOD_2; //Memory Manager
+    multipop(R7);
     [PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE + 1]*20 + 4] = R0;
     [PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE + 1]*20 + 5] = "1110";
     R1 = GET_FREE_PAGE;
+    multipush(R7);
     call MOD_2;
+    multipop(R7);
     [PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE + 1]*20 + 6] = R0;
     [PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE + 1]*20 + 7] = "1110";
     multipop(R1,R2,R3);
@@ -49,23 +53,23 @@ endif;
 
 //Allocate Stack Pages and User Area Page for child process
 multipush(R0,R1,R2);
-multipush(R3);
+multipush(R3,R7);
 R1 = GET_FREE_PAGE;
 call MOD_2;
-multipop(R3);
+multipop(R3,R7);
 [PAGE_TABLE_BASE + childPID*20 + 16] = R0;
 [PAGE_TABLE_BASE + childPID*20 + 17] = [PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE+1]*20 + 17];
-multipush(R3);
+multipush(R3,R7);
 R1 = GET_FREE_PAGE;
 call MOD_2;
-multipop(R3);
+multipop(R3,R7);
 [PAGE_TABLE_BASE + childPID*20 + 18] = R0;
 [PAGE_TABLE_BASE + childPID*20 + 19] = [PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE+1]*20 + 19];
 
-multipush(R3);
+multipush(R3,R7);
 R1 = GET_FREE_PAGE;
 call MOD_2;
-multipop(R3);
+multipop(R3,R7);
 [PROCESS_TABLE + childPID*16 + 11] = R0;
 multipop(R0,R1,R2);
 
@@ -99,7 +103,7 @@ R4 = 0;
 while(R4<8) do
     R5 = [PROCESS_TABLE + childPID*16 + 11]*512 + RESOURCE_TABLE_OFFSET + R4*2;
     [R5] = [[ptEntry + 11]*512 + RESOURCE_TABLE_OFFSET + R4*2];
-    [R5 + 1] = [[ptEntry + 11]*512 + RESOURCE_TABLE_OFFSET + R4*2];
+    [R5 + 1] = [[ptEntry + 11]*512 + RESOURCE_TABLE_OFFSET + R4*2 + 1];
     if([R5] == SEMAPHORE) then
         R6 = [R5 + 1];
         //Increment Process Count
