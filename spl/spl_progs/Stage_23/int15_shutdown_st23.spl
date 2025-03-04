@@ -1,0 +1,53 @@
+//Shutdown System call has number 21
+//Switch to Kernel Stack and set MODE Flag
+alias userSP R0;
+userSP = SP;
+
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 13] = SP;
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512 -1;
+
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 21; //Syscall for Shutdown
+
+//Shutdown can be invoked only from shell
+//If current process not shell(PID 1), or current user not root(USERID 1)
+if([PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 1] != 1 || [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 3] != 1)then
+    //return -1
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 0;
+    [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = -1;//Return value
+    SP = userSP;
+    breakpoint;
+    ireturn;
+endif;
+
+//Commit changes made in memory copies to disk
+
+//INODE Table(Pages 59-60, Disk 3-4)
+multipush(R0);
+R1 = DISK_STORE; //Function 1
+R2 = [SYSTEM_STATUS_TABLE + 1];
+R3 = 59;
+R4 = 3;
+call MOD_4; //Device Manager
+R1 = DISK_STORE; //Function 1
+R2 = [SYSTEM_STATUS_TABLE + 1];
+R3 = 60;
+R4 = 4;
+call MOD_4;
+
+//ROOT FILE(Pages 62, Disk 5)
+R1 = DISK_STORE; //Function 1
+R2 = [SYSTEM_STATUS_TABLE + 1];
+R3 = 62;
+R4 = 5;
+call MOD_4;
+
+//DISK FREE LIST(Pages 61,Disk 2)
+R1 = DISK_STORE; //Function 1
+R2 = [SYSTEM_STATUS_TABLE + 1];
+R3 = 61;
+R4 = 2;
+call MOD_4;
+multipop(R0);
+
+//Halt the System
+halt;
