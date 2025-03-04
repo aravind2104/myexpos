@@ -1,0 +1,23 @@
+int main()
+{
+decl
+    int temp,perm;
+    str s1;
+enddecl
+begin
+    temp = exposcall("Write",-2,"Enter file:");
+    temp = exposcall("Read",-1,s1);
+    temp = exposcall("Write",-2,"Deleting file");
+    temp = exposcall("Delete",s1);
+    if(temp == -1)then
+        temp = exposcall("Write",-2,"Not DATA F");    
+    else
+        if(temp == -2)then
+            temp = exposcall("Write",-2,"File in use");
+        else
+            temp = exposcall("Write",-2,"Done");
+        endif;
+    endif;
+    return 0;
+end
+}

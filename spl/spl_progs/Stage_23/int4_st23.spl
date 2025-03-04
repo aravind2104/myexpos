@@ -106,7 +106,7 @@ if(syscallNo == 4) then
     endif;
 
     //If the file is not a DATA file, return -1.
-    if([INODE_TABLE + inodeIndex*16 + 2] != DATA) then
+    if([INODE_TABLE + inodeIndex*16] != DATA) then
         [ptEntry + 9] = 0;
         [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = -1;//Return value
         SP = userSP;
@@ -117,7 +117,7 @@ if(syscallNo == 4) then
     //If exclusive Permission is set
     if([INODE_TABLE + inodeIndex*16 + 4] == EXCLUSIVE) then
         //If current user is not root and current user does not own file, return -1
-        if([ptEntry + 3] != 1 && [INODE_TABLE + inodeIndex*16 + 3] != [ptEntry + 3]) then
+        if([ptEntry + 3] != ROOT && [INODE_TABLE + inodeIndex*16 + 3] != [ptEntry + 3]) then
             [ptEntry + 9] = 0;
             [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = -1;//Return value
             SP = userSP;
@@ -184,7 +184,7 @@ if(syscallNo == 4) then
 
     //Switch back to user mode, with return value 0
     [ptEntry + 9] = 0;
-    [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = -2;//Return value
+    [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = 0;//Return value
     SP = userSP;
     breakpoint;
     ireturn;
