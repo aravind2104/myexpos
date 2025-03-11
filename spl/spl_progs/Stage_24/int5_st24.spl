@@ -29,6 +29,7 @@ if(syscallNo == 2)then
         [ptEntry + 9] = 0;
         [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = -3;//Return value
         SP = userSP;
+        breakpoint;
         ireturn;
     endif;
     //Extract fileName from arguments
@@ -46,6 +47,7 @@ if(syscallNo == 2)then
         [ptEntry + 9] = 0;
         [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = -1;//Return value
         SP = userSP;
+        breakpoint;
         ireturn;
     endif;
     //If no free entries in Open File Table, return -2
@@ -53,6 +55,7 @@ if(syscallNo == 2)then
         [ptEntry + 9] = 0;
         [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = -2;//Return value
         SP = userSP;
+        breakpoint;
         ireturn;
     endif;
     //Set Per-Process Table Entry
@@ -62,6 +65,7 @@ if(syscallNo == 2)then
     [ptEntry + 9] = 0;
     [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = R3;//Return value
     SP = userSP;
+    breakpoint;
     ireturn;
 endif;
 
@@ -76,6 +80,7 @@ if(syscallNo == 3)then
         [ptEntry + 9] = 0;
         [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = -1;//Return value
         SP = userSP;
+        breakpoint;
         ireturn;
     endif;
     //Get index of Open File Table from Per-Process Table Entry
@@ -94,5 +99,6 @@ if(syscallNo == 3)then
     [ptEntry + 9] = 0;
     [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = 0;//Return value
     SP = userSP;
+    breakpoint;
     ireturn;
 endif;
