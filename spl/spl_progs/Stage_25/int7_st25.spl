@@ -1,0 +1,167 @@
+//Set mode flag
+alias ptEntry R1;
+ptEntry = PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16;
+
+[ptEntry + 9] = 5; //Write system call
+
+//Switch to Kernel Stack
+alias userSP R2;
+userSP = SP;
+[ptEntry + 13] = SP;
+SP = [ptEntry + 11]*512 - 1;
+
+alias returnAddr R8;
+returnAddr = [PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512;
+
+//Extract file descriptor and word to be written
+alias fileDesc R3;
+fileDesc = [[PTBR + ((userSP - 4)/512)*2]*512 + (userSP-4)%512];
+alias word R4;
+word = [[PTBR + ((userSP-3)/512)*2]*512 + (userSP-3)%512];
+
+//If word to be written to STDOUT(fileDesc = -2)
+if(fileDesc == -2)then
+    //Call terminal_write()
+    multipush(R1,R2,R3,R4);
+    R1 = TERMINAL_WRITE;
+    R2 = [SYSTEM_STATUS_TABLE + 1];
+    R3 = word;
+    call MOD_4;
+    multipop(R1,R2,R3,R4);
+    //rest mode flag and return to user mode
+    [ptEntry + 9] = 0;
+    [returnAddr] = 0;//Return value
+    SP = userSP;
+    breakpoint;
+    ireturn;
+endif;
+
+//If fileDesc invalid, return -1
+if(fileDesc < 0 || fileDesc > 7)then
+    [ptEntry + 9] = 0;
+    [returnAddr] = 1;//Return value
+    SP = userSP;
+    breakpoint;
+    ireturn; 
+endif;
+
+//Locate the Per Process Table
+//If resource identifier invalid, return -1
+if([[ptEntry + 11]*512 + RESOURCE_TABLE_OFFSET + fileDesc*2] == -1 || [[ptEntry + 11]*512 + RESOURCE_TABLE_OFFSET + fileDesc*2] != FILE)then
+    [ptEntry + 9] = 0;
+    [returnAddr] = 1;//Return value
+    SP = userSP;
+    breakpoint;
+    ireturn; 
+endif;
+
+//Get index of Open File Table
+alias oftEntry R5;
+oftEntry = [[ptEntry + 11]*512 + RESOURCE_TABLE_OFFSET + fileDesc*2 + 1];
+alias inodeIndex R6;
+inodeIndex = [OPEN_FILE_TABLE + oftEntry*4];
+
+//If the current user is not root and the current user does not own the file and 	
+//the exclusive permission is set, return -3. 
+if([ptEntry + 3]!=ROOT)then
+    if([INODE_TABLE + inodeIndex*16 + 3]!=[ptEntry + 3] && [INODE_TABLE + inodeIndex*16 + 4] == EXCLUSIVE)then
+        [ptEntry + 9] = 0;
+        [returnAddr] = -3;//Return value
+        SP = userSP;
+        breakpoint;
+        ireturn; 
+    endif;
+endif;
+
+//Acquire the lock on the file
+multipush(R1,R2,R3,R4,R5,R6);
+R1 = ACQUIRE_INODE; //function 4
+R2 = inodeIndex;
+R3 = [SYSTEM_STATUS_TABLE + 1];
+call MOD_0;
+multipop(R1,R2,R3,R4,R5,R6);
+
+//If locking fails,return -1
+if(R0 == -1)then
+    [ptEntry + 9] = 0;
+    [returnAddr] = -3;//Return value
+    SP = userSP;
+    breakpoint;
+    ireturn;
+endif;
+
+//Get LSeek position from Open File Table
+alias LSeek R7;
+LSeek = [OPEN_FILE_TABLE + oftEntry*4 + 2];
+
+//If Lseek same as MAX_FILE_SIZE, release_inode and return -2
+if(LSeek >= MAX_FILE_SIZE)then
+    multipush(R1,R2,R3,R4,R5,R6,R7);
+    R1 = RELEASE_INODE; //function 5 
+    R2 = inodeIndex;
+    R3 = [SYSTEM_STATUS_TABLE + 1];
+    call MOD_0;
+    multipop(R1,R2,R3,R4,R5,R6,R7);
+    [ptEntry + 9] = 0;
+    [returnAddr] = -2;//Return value
+    SP = userSP;
+    breakpoint;
+    ireturn;
+endif;
+
+//If Lseek multiple of 512 and same as File size in inode table
+if(LSeek%512==0 && LSeek==[INODE_TABLE + inodeIndex*16 + 2])then
+    //Get a free disk block
+    multipush(R1,R2,R3,R4,R5,R6,R7);
+    R1 = GET_FREE_BLOCK; 
+    call MOD_2;
+    multipop(R1,R2,R3,R4,R5,R6,R7);
+    //If no free block,release_inode() and return -2
+    if(R0 == -1)then
+        multipush(R1,R2,R3,R4,R5,R6,R7);
+        R1 = RELEASE_INODE; //function 5 
+        R2 = inodeIndex;
+        R3 = [SYSTEM_STATUS_TABLE + 1];
+        call MOD_0;
+        multipop(R1,R2,R3,R4,R5,R6,R7);
+        [ptEntry + 9] = 0;
+        [returnAddr] = -2;//Return value
+        SP = userSP;
+        breakpoint;
+        ireturn;
+    endif;
+    //Set new disk block found in corresponding disk block field
+    [INODE_TABLE + inodeIndex*16 + 8 + (LSeek/512)] = R0;
+endif;
+
+multipush(R1,R2,R3,R4,R5,R6,R7);
+R1 = BUFFERED_WRITE;
+R2 = [INODE_TABLE + inodeIndex*16 + 8 + (LSeek/512)];
+R3 = LSeek%512;
+R4 = word;
+call MOD_3;
+multipop(R1,R2,R3,R4,R5,R6,R7);
+
+//If Lseek equals file size, increment file size in inode table and root file memory copy
+if(LSeek==[INODE_TABLE + inodeIndex*16 + 2])then
+    [INODE_TABLE + inodeIndex*16 + 2] = [INODE_TABLE + inodeIndex*16 + 2] + 1;
+    [ROOT_FILE + inodeIndex*8 + 1] = [ROOT_FILE + inodeIndex*8 + 1] + 1;
+endif;
+
+//increment LSeek in Open File Table
+[OPEN_FILE_TABLE + oftEntry*4 + 2] = [OPEN_FILE_TABLE + oftEntry*4 + 2] + 1;
+
+//Release lock on file
+multipush(R1,R2,R3,R4,R5,R6,R7);
+R1 = RELEASE_INODE; //function 5 
+R2 = inodeIndex;
+R3 = [SYSTEM_STATUS_TABLE + 1];
+call MOD_0;
+multipop(R1,R2,R3,R4,R5,R6,R7);
+
+//Swtich back to user mode
+[ptEntry + 9] = 0;
+[returnAddr] = 0;//Return value
+SP = userSP;
+breakpoint;
+ireturn;

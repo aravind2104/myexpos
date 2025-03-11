@@ -153,7 +153,7 @@ if(functionNum == 5)then
     endwhile;
     //For each pid from 2 to MaxProc - 1
     R3 = 2;
-    while(R3 < MaxProc)do
+    while(R3 < MAX_PROC_NUM)do
         if(R3 != currentPID && [PROCESS_TABLE + R3*16 + 4] != TERMINATED)then
             //Call exit_process()
             multipush(R1,R2,R3);
