@@ -1,0 +1,145 @@
+breakpoint;
+alias ptEntry R1;
+ptEntry = PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16;
+//Set Mode Flag
+[ptEntry + 9] = 7;
+
+//Switch to Kernel Stack
+alias userSP R2;
+userSP = SP;
+[ptEntry + 13] = SP;
+SP = [ptEntry + 11]*512 - 1;
+
+//Extract fileDescriptor and addr
+alias fileDesc R3;
+fileDesc = [[PTBR + ((userSP-4)/512)*2]*512 + (userSP-4)%512];
+alias addr R4;
+addr = [[PTBR + ((userSP-3)/512)*2]*512 + (userSP-3)%512];
+alias returnAddr R5;
+returnAddr = [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512];
+
+//If input to be read from terminal(fileDesc -1)
+if(fileDesc == -1)then
+    //Call terminal_read
+    multipush(R1,R2,R3,R4,R5);
+    R1 = TERMINAL_READ; //function 4
+    R2 = [SYSTEM_STATUS_TABLE + 1];
+    R3 = addr;
+    call MOD_4; //Device Manager
+    multipop(R1,R2,R3,R4,R5);
+//Read from file
+else 
+    //If fileDescriptor is invalid return -1;
+    if(fileDesc < 0 || fileDesc > 7)then
+        returnAddr = -1;
+        [ptEntry + 9] = 0;
+        SP = userSP;
+        breakpoint;
+        ireturn;
+    endif;
+    //Locate PerProcess Table, if Resource identifier is invalid or not FILE, return -1
+    if([[ptEntry + 11]*512 + RESOURCE_TABLE_OFFSET + fileDesc*2] == -1 || [[ptEntry + 11]*512 + RESOURCE_TABLE_OFFSET + fileDesc*2] != FILE )then
+        returnAddr = -1;
+        [ptEntry + 9] = 0;
+        SP = userSP;
+        breakpoint;
+        ireturn;
+    endif;
+    //Get index of Open File Table Entry
+    alias oftEntry R6;
+    oftEntry = [[ptEntry + 11]*512 + RESOURCE_TABLE_OFFSET + fileDesc*2 + 1];
+    //Get Inode Table Entry from Open File Table
+    alias inodeIndex R7;
+    inodeIndex = [OPEN_FILE_TABLE + oftEntry*4];
+    //Acquire lock on file through acquire_inode()
+    multipush(R1,R2,R3,R4,R5,R6,R7);
+    R1 = ACQUIRE_INODE; //Function 4
+    R2 = inodeIndex;
+    R3 = [SYSTEM_STATUS_TABLE + 1];
+    call MOD_0;
+    multipop(R1,R2,R3,R4,R5,R6,R7);
+    //If Acquiring inode fails,return -1
+    if(R0 == -1)then
+        returnAddr = -1;
+        [ptEntry + 9] = 0;
+        SP = userSP;
+        breakpoint;
+        ireturn;
+    endif;
+
+    //Get LSeek position from Open File Table
+    alias LSeek R8;
+    LSeek = [OPEN_FILE_TABLE + oftEntry*4 + 2];
+    //Get physical address corresponding to logical addr(input)
+    alias phyAddr R9;
+    phyAddr = [[PTBR + (addr/512)*2]*512 + addr%512];
+    //If file corresponds to root file(Inode Index equal to INODE_ROOT)
+    if(inodeIndex == INODE_ROOT)then
+        //If lseek value is equal to root file
+        if(LSeek == 480)then
+            //release_inode() and return -2
+            multipush(R1,R2,R3,R4,R5,R6,R7,R8,R9);
+            R1 = RELEASE_INODE;
+            R2 = inodeIndex;
+            R3 = [SYSTEM_STATUS_TABLE + 1];
+            call MOD_0;
+            multipop(R1,R2,R3,R4,R5,R6,R7,R8,R9);
+            returnAddr = -2;
+            [ptEntry + 9] = 0;
+            SP = userSP;
+            breakpoint;
+            ireturn;
+        endif;
+        //Read from word at lseek position in memory copy of root file to phyAddr
+        phyAddr = [ROOT_FILE + LSeek];
+        //Increment Lseek in Open File Table
+        [OPEN_FILE_TABLE + oftEntry*4 + 2] = LSeek + 1;
+    else
+        //If Lseek same as file size, return -2
+        if(LSeek == [INODE_TABLE + inodeIndex*16 + 2])then
+            //release_inode() and return -2
+            multipush(R1,R2,R3,R4,R5,R6,R7,R8,R9);
+            R1 = RELEASE_INODE;
+            R2 = inodeIndex;
+            R3 = [SYSTEM_STATUS_TABLE + 1];
+            call MOD_0;
+            multipop(R1,R2,R3,R4,R5,R6,R7,R8,R9);
+            returnAddr = -2;
+            [ptEntry + 9] = 0;
+            SP = userSP;
+            breakpoint;
+            ireturn;
+        endif;
+        //Get disck block number and position in block from which input is read
+        alias blockNum R10;
+        blockNum = LSeek/512;
+        blockNum = [INODE_TABLE + inodeIndex*16 + 8 + blockNum];
+        alias offset R11;
+        offset = LSeek%512;
+        //Read data from file buffer by calling buffered_read
+        multipush(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11);
+        R1 = BUFFERED_READ;
+        R2 = blockNum;
+        R3 = offset;
+        R4 = phyAddr;
+        call MOD_3;
+        multipop(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11);
+        //Increment LSeek
+        [OPEN_FILE_TABLE + oftEntry*4 + 2] = LSeek + 1;
+    endif;
+    //Relaease lock on file by calling release_inode()
+    multipush(R1,R2,R3,R4,R5);
+    R1 = RELEASE_INODE;
+    R2 = inodeIndex;
+    R3 = [SYSTEM_STATUS_TABLE + 1];
+    call MOD_0;
+    multipop(R1,R2,R3,R4,R5);
+endif;
+
+//Switch back to user Stack and reset mode flag
+//Return 0
+returnAddr = 0;
+[ptEntry + 9] = 0;
+SP = userSP;
+breakpoint;
+ireturn;
