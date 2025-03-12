@@ -15,40 +15,40 @@ if(functionNum == 1)then
     R3 = [SYSTEM_STATUS_TABLE + 1];
     call MOD_0;
     multipop(R1,R2,R3,R4,R5);
+    alias buff R6;
+    buff = BUFFER_TABLE + BufferNum*4;
     //if buffer contains a different disk block
-    if([BUFFER_TABLE + BufferNum*4] != BlockNum)then
+    if([buff] != BlockNum)then
         //If buffer contents are dirty
-        if([BUFFER_TABLE + BufferNum*4 + 1] == 1)then
+        if([buff + 1] == 1)then
             //Write back contents to disk using disk_store()
-            multipush(R1,R2,R3,R4,R5);
+            multipush(R1,R2,R3,R4,R5,R6);
             R1 = DISK_STORE; //function 1
             R2 = [SYSTEM_STATUS_TABLE + 1];
             R3 = 71 + BufferNum;
-            R4 = [BUFFER_TABLE + BufferNum*4];
+            R4 = [buff];
             call MOD_4;
-            multipop(R1,R2,R3,R4,R5);
+            multipop(R1,R2,R3,R4,R5,R6);
         endif;
         //Load the required disk block using disk_load()
-        multipush(R1,R2,R3,R4,R5);
+        multipush(R1,R2,R3,R4,R5,R6);
         R1 = DISK_LOAD; //function 2
         R4 = BlockNum;
         R2 = [SYSTEM_STATUS_TABLE + 1];
         R3 = 71 + BufferNum;
         call MOD_4;
-        multipop(R1,R2,R3,R4,R5);
+        multipop(R1,R2,R3,R4,R5,R6);
         //Set new disk block number in Buffer Table
-        [BUFFER_TABLE + BufferNum*4] = BlockNum;
+        [buff] = BlockNum;
     endif;
     //Write content of word taken as input into offset location in buffer
     [(71 + BufferNum)*512 + offset] = word;
-    [BUFFER_TABLE + BufferNum*4 + 1] = 1;
+    [buff + 1] = 1;
     //Release the buffer
-    multipush(R1,R2,R3,R4,R5);
     R1 = RELEASE_BUFFER; //function 2
     R2 = BufferNum;
     R3 = [SYSTEM_STATUS_TABLE + 1];
     call MOD_0;
-    multipop(R1,R2,R3,R4,R5);
     breakpoint;
     return;
 endif;
@@ -68,43 +68,43 @@ if(functionNum == 2)then
     R3 = [SYSTEM_STATUS_TABLE + 1];
     call MOD_0;
     multipop(R1,R2,R3,R4,R5);
+    alias buff R6;
+    buff = BUFFER_TABLE + BufferNum*4;
     //If Buffer contains different Block
-    if([BUFFER_TABLE + BufferNum*4] != BlockNum)then
+    if([buff] != BlockNum)then
         //If Buffer contents are dirty
-        if([BUFFER_TABLE + BufferNum*4 + 1] == 1)then
+        if([buff + 1] == 1)then
             //Write back contents by invoking disk_store()
-            multipush(R1,R2,R3,R4,R5);
+            multipush(R1,R2,R3,R4,R5,R6);
             R1 = DISK_STORE;
-            R4 = [BUFFER_TABLE + BufferNum*4];
+            R4 = [buff];
             R2 = [SYSTEM_STATUS_TABLE + 1];
             R3 = 71 + BufferNum;
             call MOD_4; //Device Manager
-            multipop(R1,R2,R3,R4,R5);
+            multipop(R1,R2,R3,R4,R5,R6);
             //Mark the buffer as clean
-            [BUFFER_TABLE + BufferNum*4 + 1] = 0;
+            [buff + 1] = 0;
         endif;
         //Load required disk block into buffer by invoking disk_load()
-        multipush(R1,R2,R3,R4,R5);
+        multipush(R1,R2,R3,R4,R5,R6);
         R1 = DISK_LOAD;
         R4 = BlockNum;
         R2 = [SYSTEM_STATUS_TABLE + 1];
         R3 = 71 + BufferNum;
         call MOD_4;
-        multipop(R1,R2,R3,R4,R5);
+        multipop(R1,R2,R3,R4,R5,R6);
         //Set new Disk block in Buffer Table Entry 
-        [BUFFER_TABLE + BufferNum*4] = BlockNum;
+        [buff] = BlockNum;
     endif;
 
     //Copy contents in offset location in the buffer to physical address(input)
     [memAddr] = [(71 + BufferNum)*512 + offset];
 
     //Release the buffer by calling Release_Buffer()
-    multipush(R1,R2,R3,R4,R5,R6);
     R1 = RELEASE_BUFFER;
     R2 = BufferNum;
     R3 = [SYSTEM_STATUS_TABLE + 1];
     call MOD_0;
-    multipop(R1,R2,R3,R4,R5,R6);
     breakpoint;
     return;
 endif;
@@ -172,17 +172,17 @@ if(functionNum == 3)then
     //If file name is root
     if([INODE_TABLE + R3*16 + 1] == "root")then
         //Set inode index field in open file table entry to INODE_ROOT
-        [OPEN_FILE_TABLE + oftEntry*4] = INODE_ROOT;
+        [oftEntry] = INODE_ROOT;
     else
         if([FILE_STATUS_TABLE + inodeIndex*4 + 1] == -1)then
             [FILE_STATUS_TABLE + inodeIndex*4 + 1] = 1; 
         else
             [FILE_STATUS_TABLE + inodeIndex*4 + 1] = [FILE_STATUS_TABLE + inodeIndex*4 + 1] + 1; 
         endif;
-        [OPEN_FILE_TABLE + oftEntry*4] = inodeIndex;
+        [oftEntry] = inodeIndex;
     endif;
-    [OPEN_FILE_TABLE + oftEntry*4 + 1] = 1;
-    [OPEN_FILE_TABLE + oftEntry*4 + 2] = 0;
+    [oftEntry + 1] = 1;
+    [oftEntry + 2] = 0;
 
     multipush(R1,R2,R3,R4);
     R1 = 5; //Release Inode
@@ -200,16 +200,17 @@ endif;
 if(functionNum == 4)then
     alias oftEntry R2;
     alias inodeIndex R3;
+    oftEntry = OPEN_FILE_TABLE + oftEntry*4;
     //Find index of inode table entry
-    inodeIndex = [OPEN_FILE_TABLE + oftEntry*4];
+    inodeIndex = [oftEntry];
     //Decrement Open Instance Count
-    [OPEN_FILE_TABLE + oftEntry*4 + 1] = [OPEN_FILE_TABLE + oftEntry*4 + 1] - 1;
+    [oftEntry + 1] = [oftEntry + 1] - 1;
     //If open instance count becomes zero
-    if([OPEN_FILE_TABLE + oftEntry*4 + 1] == 0)then
+    if([oftEntry + 1] == 0)then
         //Invalidate the entry
-        [OPEN_FILE_TABLE + oftEntry*4] = -1;
-        [OPEN_FILE_TABLE + oftEntry*4 + 1] = -1;
-        [OPEN_FILE_TABLE + oftEntry*4 + 2] = -1;
+        [oftEntry] = -1;
+        [oftEntry + 1] = -1;
+        [oftEntry + 2] = -1;
         //If file is not root, decrement file open File Status Table
         if([INODE_TABLE + inodeIndex*16 ]!=ROOT)then
             [FILE_STATUS_TABLE + inodeIndex*4 + 1] = [FILE_STATUS_TABLE + inodeIndex*4 + 1] - 1; 

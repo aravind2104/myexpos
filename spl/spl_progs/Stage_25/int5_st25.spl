@@ -3,7 +3,8 @@ alias userSP R1;
 userSP = SP;
 alias ptEntry R7;
 ptEntry = PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16;
-
+alias returnAddr R9;
+returnAddr = [PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512;
 //Switch to Kernel Stack
 [ptEntry + 13] = SP;
 SP = [ptEntry + 11]*512 -1;
@@ -27,7 +28,7 @@ if(syscallNo == 2)then
     //If no free entry return -3
     if(R3 == 8)then
         [ptEntry + 9] = 0;
-        [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = -3;//Return value
+        [returnAddr] = -3;//Return value
         SP = userSP;
         breakpoint;
         ireturn;
@@ -36,16 +37,16 @@ if(syscallNo == 2)then
     alias fileName R4;
     fileName = [[PTBR + ((userSP-4)/512)*2]*512 + (userSP-4)%512];
     //Call Open function from File Manager Module
-    multipush(R1,R2,R3,R4,R7);
+    multipush(R1,R3,R4,R7,R9);
     R1 = OPEN; //Function 3
     R2 = R4; //fileName
     call MOD_3; //File Manager Module
-    multipop(R1,R2,R3,R4,R7);
+    multipop(R1,R3,R4,R7,R9);
     //R0 contains Open File Table Entry
     //If locking fails(deleted file),or if Exec file return -1;
     if(R0 == -1)then
         [ptEntry + 9] = 0;
-        [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = -1;//Return value
+        [returnAddr] = -1;//Return value
         SP = userSP;
         breakpoint;
         ireturn;
@@ -53,7 +54,7 @@ if(syscallNo == 2)then
     //If no free entries in Open File Table, return -2
     if(R0 == -2)then
         [ptEntry + 9] = 0;
-        [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = -2;//Return value
+        [returnAddr] = -2;//Return value
         SP = userSP;
         breakpoint;
         ireturn;
@@ -63,7 +64,7 @@ if(syscallNo == 2)then
     [[ptEntry + 11]*512 + RESOURCE_TABLE_OFFSET + R3*2 + 1] = R0;
     //Return process, return value, changing stack, resetting mode flag
     [ptEntry + 9] = 0;
-    [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = R3;//Return value
+    [returnAddr] = R3;//Return value
     SP = userSP;
     breakpoint;
     ireturn;
@@ -78,7 +79,7 @@ if(syscallNo == 3)then
     //If fileDesc is invalid, return -1
     if(fileDesc < 0 || fileDesc > 7 || [[ptEntry + 11]*512 + RESOURCE_TABLE_OFFSET + fileDesc*2] != FILE)then
         [ptEntry + 9] = 0;
-        [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = -1;//Return value
+        [returnAddr] = -1;//Return value
         SP = userSP;
         breakpoint;
         ireturn;
@@ -87,17 +88,17 @@ if(syscallNo == 3)then
     alias oftIndex R4;
     oftIndex = [[ptEntry + 11]*512 + RESOURCE_TABLE_OFFSET + fileDesc*2 + 1];
     //Call Close function of File Manager Module
-    multipush(R1,R2,R3,R4,R7);
+    multipush(R1,R3,R4,R7,R9);
     R1 = CLOSE; //Function 4
     R2 = R4; //Open File Table Index
     call MOD_3; //File Manager Module
-    multipop(R1,R2,R3,R4,R7);
+    multipop(R1,R3,R4,R7,R9);
     //Invalidate Per-Process Table Entry
     [[ptEntry + 11]*512 + RESOURCE_TABLE_OFFSET + R3*2] = -1;
     [[ptEntry + 11]*512 + RESOURCE_TABLE_OFFSET + R3*2 + 1] = -1;
     //Return process, return value, changing stack, resetting mode flag
     [ptEntry + 9] = 0;
-    [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = 0;//Return value
+    [returnAddr] = 0;//Return value
     SP = userSP;
     breakpoint;
     ireturn;
@@ -115,7 +116,7 @@ if(syscallNo == 6)then
     //If file descriptor invalid, return -1
     if(fileDesc < 0 || fileDesc > 7)then
         [ptEntry + 9] = 0;
-        [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = -1;//Return value
+        [returnAddr] = -1;//Return value
         SP = userSP;
         breakpoint;
         ireturn;  
@@ -123,7 +124,7 @@ if(syscallNo == 6)then
     //Locate Per Process Table of current resource and check if valid,else return -1
     if([[ptEntry + 11]*512 + RESOURCE_TABLE_OFFSET + fileDesc*2]==-1 || [[ptEntry + 11]*512 + RESOURCE_TABLE_OFFSET + fileDesc*2]!=FILE)then
         [ptEntry + 9] = 0;
-        [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = -1;//Return value
+        [returnAddr] = -1;//Return value
         SP = userSP;
         breakpoint;
         ireturn;
@@ -131,20 +132,21 @@ if(syscallNo == 6)then
     //Get Index of Open File Table Entry
     alias oftEntry R5;
     oftEntry = [[ptEntry + 11]*512 + RESOURCE_TABLE_OFFSET + fileDesc*2 + 1];
+    oftEntry = OPEN_FILE_TABLE + oftEntry*4;
     //Get index of inode table Entry
     alias inodeIndex R6;
-    inodeIndex = [OPEN_FILE_TABLE + oftEntry*4];
+    inodeIndex = [oftEntry];
     //Lock the inode using acquire_inode()
-    multipush(R1,R2,R3,R4,R5,R6,R7);
+    multipush(R1,R3,R4,R5,R6,R7,R9);
     R1 = ACQUIRE_INODE; //function 4
     R2 = inodeIndex;
     R3 = [SYSTEM_STATUS_TABLE + 1];
     call MOD_0;
-    multipop(R1,R2,R3,R4,R5,R6,R7);
+    multipop(R1,R3,R4,R5,R6,R7,R9);
     //If locking fails, return -1
     if(R0 == -1)then
         [ptEntry + 9] = 0;
-        [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = -1;//Return value
+        [returnAddr] = -1;//Return value
         SP = userSP;
         breakpoint;
         ireturn;
@@ -159,15 +161,15 @@ if(syscallNo == 6)then
         fileSize = [INODE_TABLE + inodeIndex*16 + 2];
     endif;
     //If (lseek + offset) less than 0, release_inode() and return -2
-    if([OPEN_FILE_TABLE + oftEntry*4 + 2] + offset < 0)then
-        multipush(R1,R2,R3,R4,R5,R6,R7,R8);
+    if([oftEntry + 2] + offset < 0)then
+        multipush(R1,R3,R4,R5,R6,R7,R8,R9);
         R1 = RELEASE_INODE; //function 5
         R2 = inodeIndex;
         R3 = [SYSTEM_STATUS_TABLE + 1];
         call MOD_0;
-        multipop(R1,R2,R3,R4,R5,R6,R7,R8);
+        multipop(R1,R3,R4,R5,R6,R7,R8,R9);
         [ptEntry + 9] = 0;
-        [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = -2;//Return value
+        [returnAddr] = -2;//Return value
         SP = userSP;
         breakpoint;
         ireturn;
@@ -175,26 +177,26 @@ if(syscallNo == 6)then
     //If given offset is 0
     if(offset == 0)then
         //Set lseek value to 0
-        [OPEN_FILE_TABLE + oftEntry*4 + 2] = 0;
+        [oftEntry + 2] = 0;
     else
         //if lseek+offset greater than file size
-        if([OPEN_FILE_TABLE + oftEntry*4 + 2] + offset > fileSize)then
+        if([oftEntry + 2] + offset > fileSize)then
             //Set lseek value to file size
-            [OPEN_FILE_TABLE + oftEntry*4 + 2] = fileSize;
+            [oftEntry + 2] = fileSize;
         else
             //Change lseek value in Open File Table entry to lseek+offset
-            [OPEN_FILE_TABLE + oftEntry*4 + 2] = [OPEN_FILE_TABLE + oftEntry*4 + 2] + offset;
+            [oftEntry + 2] = [oftEntry + 2] + offset;
         endif;
     endif;
     //Free the inode using release_inode() and return 0(success)
-    multipush(R1,R2,R3,R4,R5,R6,R7,R8);
+    multipush(R1,R7,R9);
     R1 = RELEASE_INODE; //function 5
     R2 = inodeIndex;
     R3 = [SYSTEM_STATUS_TABLE + 1];
     call MOD_0;
-    multipop(R1,R2,R3,R4,R5,R6,R7,R8);
+    multipop(R1,R7,R9);
     [ptEntry + 9] = 0;
-    [[PTBR + ((userSP-1)/512)*2]*512 + (userSP-1)%512] = 0;//Return value
+    [returnAddr] = 0;//Return value
     SP = userSP;
     breakpoint;
     ireturn;
