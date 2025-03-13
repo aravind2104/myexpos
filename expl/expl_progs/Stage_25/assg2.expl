@@ -1,0 +1,24 @@
+int main(){
+decl
+    int temp,fd,a,num;
+    str data;
+enddecl
+begin
+    fd = exposcall("Open","sample.dat");
+    a = exposcall("Seek",fd,1100);
+    num = 2000;
+    while(num<2514)do
+        temp = exposcall("Write",fd,num);
+        num = num + 1;
+    endwhile;
+
+    a = exposcall("Seek",fd,-1);
+    while(a!=-2) do
+        temp = exposcall("Read",fd,data);
+        temp = exposcall("Write",-2,data);
+        a = exposcall("Seek",fd,-2);
+    endwhile;
+    temp = exposcall("Close",fd);
+    return 0;
+end
+}

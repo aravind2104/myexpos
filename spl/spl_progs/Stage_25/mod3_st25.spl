@@ -136,7 +136,7 @@ if(functionNum == 3)then
         breakpoint;
         return;
     endif;
-    //If file type is Exec, release inode and return -1
+    //If file type is Exec, release inode and return -2
     if([INODE_TABLE + R3*16] == EXEC)then
         multipush(R1,R2,R3);
         R1 = 5; //Release Inode
@@ -144,12 +144,11 @@ if(functionNum == 3)then
         R3 = [SYSTEM_STATUS_TABLE + 1];
         call MOD_0;
         multipop(R1,R2,R3);
-        R0 = -1;
+        R0 = -2;
         breakpoint;
         return;
     endif;
     //Find a free Entry in Open File Table
-    alias oftEntry R4;
     R4 = 0;
     while(R4 < MAX_OPENFILE_NUM) do
         if([OPEN_FILE_TABLE + R4*4] == -1)then
@@ -169,6 +168,8 @@ if(functionNum == 3)then
         breakpoint;
         return;
     endif;
+    alias oftEntry R5;
+    oftEntry = OPEN_FILE_TABLE + R4*4;
     //If file name is root
     if([INODE_TABLE + R3*16 + 1] == "root")then
         //Set inode index field in open file table entry to INODE_ROOT
@@ -191,7 +192,7 @@ if(functionNum == 3)then
     call MOD_0;
     multipop(R1,R2,R3,R4);
 
-    R0 = oftEntry;
+    R0 = R4;
     breakpoint;
     return;
 endif;
@@ -212,11 +213,13 @@ if(functionNum == 4)then
         [oftEntry + 1] = -1;
         [oftEntry + 2] = -1;
         //If file is not root, decrement file open File Status Table
+        alias ftEntry R4;
+        R4 = FILE_STATUS_TABLE + inodeIndex*4;
         if([INODE_TABLE + inodeIndex*16 ]!=ROOT)then
-            [FILE_STATUS_TABLE + inodeIndex*4 + 1] = [FILE_STATUS_TABLE + inodeIndex*4 + 1] - 1; 
+            [R4 + 1] = [R4 + 1] - 1; 
         endif;
-        if([FILE_STATUS_TABLE + inodeIndex*4 + 1] == 0)then
-            [FILE_STATUS_TABLE + inodeIndex*4 + 1] = -1;
+        if([R4 + 1] == 0)then
+            [R4 + 1] = -1;
         endif;
     endif;
     breakpoint;

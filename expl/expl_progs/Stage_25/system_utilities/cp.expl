@@ -1,5 +1,7 @@
 int main(){
 decl
+    int temp,fd1,fd2,a;
+    str name1,name2,data;
 enddecl
 begin
     temp = exposcall("Write",-2,"Copy from:");
@@ -8,7 +10,7 @@ begin
     temp = exposcall("Write",-2,"Copy to:");
     temp = exposcall("Read",-1,name2);
     if(fd1 < 0)then
-        temp = exposcall("Write",-2,"No such file!);
+        temp = exposcall("Write",-2,"No such file!");
     else
         fd2 = exposcall("Open",name2);
         if(fd2==-1)then //File not there, have to create

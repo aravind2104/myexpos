@@ -40,6 +40,7 @@ while(R1<4)do
         call MOD_4;
         multipop(R0,R1);
     endif;
+    R1 = R1 + 1;
 endwhile;
 
 //Commit changes made in memory copies to disk

@@ -1,0 +1,31 @@
+int main()
+{
+decl
+    int temp,fd,num,a,perm;
+    str fname,data;
+enddecl
+begin
+    temp = exposcall("Write",-2,"Filename:");
+    temp = exposcall("Read",-1,fname);
+    temp = exposcall("Write",-2,"Perm:");
+    temp = exposcall("Read",-1,perm);
+    
+    temp = exposcall("Create",fname,perm);
+    fd = exposcall("Open",fname);
+
+    num = 1;
+    while(num<1101)do
+        temp = exposcall("Write",fd,num);
+        num = num + 1;
+    endwhile;
+
+    a = exposcall("Seek",fd,-1);
+    while(a!=-2) do
+        temp = exposcall("Read",fd,data);
+        temp = exposcall("Write",-2,data);
+        a = exposcall("Seek",fd,-2);
+    endwhile;
+    temp = exposcall("Close",fd);
+    return 0;
+end
+}

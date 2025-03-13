@@ -8,7 +8,7 @@ begin
     i = 0;
     fd = exposcall("Open","root");
     temp = exposcall("Seek",fd,0);
-    while(x<60)do
+    while(i<60)do
         temp1 = exposcall("Read",fd,data);
         if(data!="-1")then
             temp1 = exposcall("Write",-2,data);

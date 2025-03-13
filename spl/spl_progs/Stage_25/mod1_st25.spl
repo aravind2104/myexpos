@@ -59,8 +59,8 @@ endif;
 if(functionNum==3) then
     if([PROCESS_TABLE + currentPID*16 + 9] != 9) then
         R3 = 0;
-        R4 = PROCESS_TABLE + R3*16;
         while(R3<16) do
+            R4 = PROCESS_TABLE + R3*16;
             if([R4 + 4]==WAIT_PROCESS && [R4 + 5]==currentPID) then
                 [R4 + 4] = READY;
                 [R4 + 5] = -1;
@@ -166,6 +166,7 @@ if(functionNum == 5)then
             call MOD_1;
             multipop(R1,R2,R3);
         endif;
+        R3 = R3 + 1;
     endwhile;
     //For each valid entry in inode table
     R3 = 0;

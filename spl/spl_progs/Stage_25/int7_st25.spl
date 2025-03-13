@@ -49,7 +49,7 @@ endif;
 //If resource identifier invalid, return -1
 if([[ptEntry + 11]*512 + RESOURCE_TABLE_OFFSET + fileDesc*2] == -1 || [[ptEntry + 11]*512 + RESOURCE_TABLE_OFFSET + fileDesc*2] != FILE)then
     [ptEntry + 9] = 0;
-    [returnAddr] = 1;//Return value
+    [returnAddr] = -1;//Return value
     SP = userSP;
     breakpoint;
     ireturn; 
