@@ -6,4 +6,236 @@ alias ptEntry R1;
 ptEntry = PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16;
 alias returnAddr R2;
 returnAddr = [PTBR + ((userSP - 1)/512)*2]*512 + (userSP - 1)%512;
+alias syscallNo R3;
+syscallNo = [[PTBR + ((userSP - 5)/512)*2]*512 + (userSP - 5)%512];
 
+//Newusr system call
+if(syscallNo == 22)then
+    //Extract arguments
+    alias uName R3;
+    uName = [[PTBR + ((userSP - 4)/512)*2]*512 + (userSP - 4)%512];
+    alias pass R4;
+    pass = [[PTBR + ((userSP - 3)/512)*2]*512 + (userSP - 3)%512];
+    //Set mode flag
+    [ptEntry + 9] = 22;
+    //If current user not root, or process not shell, return -2
+    if([ptEntry + 3] != 1 || [SYSTEM_STATUS_TABLE + 1] != 2)then
+        [ptEntry + 9] = 0;
+        [returnAddr] = -2; //Permission denied
+        SP = userSP;
+        breakpoint;
+        ireturn;
+    endif;
+    //Check if user already exists in User Table
+    R5 = 0;
+    while(R5 < MAX_USER_NUM)do
+        if([USER_TABLE + R5*2]==uName)then
+            [ptEntry + 9] = 0;
+            [returnAddr] = -1; //User already exists
+            SP = userSP;
+            breakpoint;
+            ireturn;
+        endif;
+        R5 = R5 + 1;
+    endwhile;
+    //Find free entry
+    R5 = 0;
+    while(R5 < MAX_USER_NUM)do
+        if([USER_TABLE + R5*2] == -1)then
+            break;
+        endif;
+        R5 = R5 + 1;
+    endwhile;
+    //If no free entry,return -3
+    if(R5 == MAX_USER_NUM)then
+        [ptEntry + 9] = 0;
+        [returnAddr] = -3; //No of users reached limit
+        SP = userSP;
+        breakpoint;
+        ireturn; 
+    endif;
+    //Encrypt the password
+    encrypt pass;
+    //Set Username and Password Fields
+    [USER_TABLE + R5*2] = uName;
+    [USER_TABLE + R5*2] = pass;
+    //Return 0
+    [ptEntry + 9] = 0;
+    [returnAddr] = 0; //No of users reached limit
+    SP = userSP;
+    breakpoint;
+    ireturn;
+endif;
+
+
+//Remusr System call
+if(syscallNo == 23)then
+    //Extract arguments
+    alias uName R3;
+    uName = [[PTBR + ((userSP - 4)/512)*2]*512 + (userSP - 4)%512];
+    //If current user not root, or current process not shell, return -2
+    if([ptEntry + 3] != 1 || [SYSTEM_STATUS_TABLE + 1] != 2)then
+        [ptEntry + 9] = 0;
+        [returnAddr] = -2; //Permission denied
+        SP = userSP;
+        breakpoint;
+        ireturn;
+    endif;
+    //If user to be removed is root or kernel,return -2
+    if(uName == "root" || uName == "kernel")then
+        [ptEntry + 9] = 0;
+        [returnAddr] = -2; //Permission denied
+        SP = userSP;
+        breakpoint;
+        ireturn;
+    endif;
+    //Find corresponding entry in User Table
+    R4 = 0;
+    while(R4 < MAX_USER_NUM)do
+        if([USER_TABLE + R4*2] == uName)then
+            break;
+        endif;
+    endwhile;
+    //If entry not found,return -1
+    if(R4 == MAX_USER_NUM)then
+        [ptEntry + 9] = 0;
+        [returnAddr] = -1; //User does not exist
+        SP = userSP;
+        breakpoint;
+        ireturn;
+    endif;
+    //Look for files of the user in disk via Root File, and return -3 if present
+    R5 = 0;
+    while(R5 < MAX_FILE_NUM)do
+        if([ROOT_FILE + R5*8  + 3] == uName)then
+            [ptEntry + 9] = 0;
+            [returnAddr] = -3; //Undeleted files for user
+            SP = userSP;
+            breakpoint;
+            ireturn;    
+        endif;
+        R5 = R5 + 1;
+    endwhile;
+    //Invalidate user table entries
+    [USER_TABLE + R4*2] = -1;
+    [USER_TABLE + R4*2 + 1] = -1;
+    //Return to user mode and reset mode flag
+    [ptEntry + 9] = 0;
+    [returnAddr] = 0; //Success
+    SP = userSP;
+    breakpoint;
+    ireturn;
+endif;
+
+
+//Setpwd system call
+if(syscallNo == 24)then
+    //Extract arguments
+    alias uName R3;
+    uName = [[PTBR + ((userSP - 4)/512)*2]*512 + (userSP - 4)%512];
+    alias pass R4;
+    pass = [[PTBR + ((userSP - 4)/512)*2]*512 + (userSP - 4)%512];
+    //Set mode flag
+    [ptEntry + 9] = 24;
+    //If current process not shell,return -1
+    if([SYSTEM_STATUS_TABLE + 1] != 2)then
+        [ptEntry + 9] = 0;
+        [returnAddr] = -1; //Permission denied
+        SP = userSP;
+        breakpoint;
+        ireturn;
+    endif;
+    //Find corresponding user table entry
+    alias utEntry R5;
+    utEntry = 0;
+    while(utEntry < MAX_USER_NUM)do
+        if([USER_TABLE + utEntry*2] == uName)then
+            break;
+        endif;
+        utEntry = utEntry + 1;
+    endwhile;
+    //If entry not found,return -2
+    if(utEntry == MAX_USER_NUM)then
+        [ptEntry + 9] = 0;
+        [returnAddr] = -2; //User does not exist
+        SP = userSP;
+        breakpoint;
+        ireturn;
+    endif;
+    //Check if user changing other users, or if not root, if fails return -1
+    if([ptEntry + 3] != utEntry)then
+        if([SYSTEM_STATUS_TABLE] != 1)then
+            [ptEntry + 9] = 0;
+            [returnAddr] = -1; //Permission denied
+            SP = userSP;
+            breakpoint;
+            ireturn;
+        endif;
+    endif;
+    //encrypt the password and set in user table Field
+    encrypt pass;
+    [USER_TABLE + utEntry + 1] = pass;
+    //Return to user mode and reset flag
+    [ptEntry + 9] = 0;
+    [returnAddr] = 0; //Success
+    SP = userSP;
+    breakpoint;
+    ireturn;
+endif;
+
+//Getuname system call
+if(syscallNo == 25)then
+    //Extract arguments
+    alias usrID R3;
+    usrID = [[PTBR + ((userSP - 4)/512)*2]*512 + (userSP - 4)%512];
+    //Check range
+    if(usrID < 0 || usrID > 15)then
+        [ptEntry + 9] = 0;
+        [returnAddr] = -1; //Invalid ID
+        SP = userSP;
+        breakpoint;
+        ireturn;
+    endif;
+    //If User table entry is invalid, return -1
+    if([USER_TABLE + usrID*2] == -1)then
+        [ptEntry + 9] = 0;
+        [returnAddr] = -1; //Invalid ID
+        SP = userSP;
+        breakpoint;
+        ireturn;
+    endif;
+    //Fetch name from the table
+    alias uName R4;
+    uName = [USER_TABLE + usrID*2];
+    //Return username, and reset
+    [ptEntry + 9] = 0;
+    [returnAddr] = uName; //Success
+    SP = userSP;
+    breakpoint;
+    ireturn;
+endif;
+
+//Getuid system call
+if(syscallNo == 26)then
+    //Extract arguments
+    alias uName R3;
+    uName = [[PTBR + ((userSP - 4)/512)*2]*512 + (userSP - 4)%512];
+    //Find corresponding entry in User Table and return it
+    R4 = 0;
+    while(R4 < MAX_USER_NUM)do
+        if([USER_TABLE + R4*2] == uName)then
+            [ptEntry + 9] = 0;
+            [returnAddr] = R4; //Success
+            SP = userSP;
+            breakpoint;
+            ireturn;
+        endif;
+        R4 = R4 + 1;
+    endwhile;
+    //Return -1,if not found
+    [ptEntry + 9] = 0;
+    [returnAddr] = -1; //Invalid username
+    SP = userSP;
+    breakpoint;
+    ireturn;
+endif;
