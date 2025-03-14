@@ -1,0 +1,80 @@
+//Login System call, system call number 27
+//Can only be invoked from login process
+
+//Set mode flag and switch to kernel stack
+alias ptEntry R1;
+ptEntry = PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16;
+[ptEntry + 9] = 27;
+alias userSP R0;
+userSP = SP;
+[ptEntry + 13] = SP;
+SP = [ptEntry + 11]*512 - 1;
+
+alias returnAddr R2;
+returnAddr = [PTBR + ((userSP - 1)/512)*2]*512 + (userSP-1)%512;
+
+//If pid not of login process(1), return -2
+if([SYSTEM_STATUS_TABLE + 1] == 1)then
+    [ptEntry + 9] = 0;
+    [returnAddr] = -2; //Permission Denied
+    SP = userSP;
+    breakpoint;
+    ireturn;
+endif;
+
+//Extract username and password
+alias uName R3;
+uName = [[PTBR + ((userSP - 4)/512)*2]*512 + (userSP-4)%512];
+alias pass R4;
+pass = [[PTBR + ((userSP - 3)/512)*2]*512 + (userSP-3)%512];
+
+//Get user table entry 
+R5 = 0;
+while(R5 < MAX_USER_NUM)do
+    if([USER_TABLE + R5*2] == uName)then
+        break;
+    endif;
+    R5 = R5 + 1;
+endwhile;
+
+//If entry does not exist, return -1
+if(R5 == MAX_USER_NUM)then
+    [ptEntry + 9] = 0;
+    [returnAddr] = -1; //Invalid username
+    SP = userSP;
+    breakpoint;
+    ireturn;
+endif;
+
+//Encrypt the pass
+encrypt pass;
+
+//Check if encrypted password matches in User table, otherwise return -1
+if([USER_TABLE + R5*2 + 1]!=pass)then
+    [ptEntry + 9] = 0;
+    [returnAddr] = -1; //Invalid password
+    SP = userSP;
+    breakpoint;
+    ireturn;
+endif;
+
+//Set STATE and USERID for shell process(PID = 2)
+[PROCESS_TABLE + 2*16 + 4] = CREATED;
+[PROCESS_TABLE + 2*16 + 3] = R5;
+
+//Set state of current process to wait
+[ptEntry + 4] = WAIT_PROCESS;
+[ptEntry + 5] = 2;
+
+//Set current_user_id in system status table
+[SYSTEM_STATUS_TABLE] = R5;
+
+//Invoke context_switch
+call MOD_5;
+
+//Reset mode flag and return to user mode
+[ptEntry + 9] = 0;
+[returnAddr] = 0; //Sucess
+SP = userSP;
+breakpoint;
+ireturn;

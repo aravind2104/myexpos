@@ -1,0 +1,50 @@
+//Logout system call, System Call number 28
+//Can only be invoked from Shell process
+
+alias userSP R0;
+userSP = SP;
+alias ptEntry R1;
+ptEntry = PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16;
+alias returnAddr R2;
+returnAddr = [PTBR + ((userSP - 1)/512)*2]*512 + (userSP-1)%512;
+
+//Set mode flag and switch to kernel stack
+[ptEntry + 9] = 28;
+[ptEntry + 13] = SP;
+SP = [ptEntry + 11]*512 - 1;
+
+//If current process not shell(PID 2), return -1
+if([SYSTEM_STATUS_TABLE + 1] == 2)then
+    [ptEntry + 9] = 0;
+    [returnAddr] = -1; //Not Shell
+    SP = userSP;
+    breakpoint;
+    ireturn;
+endif;
+
+//Kill all processes using kill_all()
+multipush(R0,R1,R2);
+R1 = KILL_ALL;
+R2 = [SYSTEM_STATUS_TABLE + 1];
+call MOD_1;
+multipop(R0,R1,R2);
+
+//Set state of shell
+[ptEntry + 4] = TERMINATED;
+
+//Obtain entry point IP from header of shell program
+//Place in beginning of stack of shell
+[[PTBR + 16]*512] = [[PTBR + 8]*512 + 1]
+//Reset USERSP field of shell to 4096
+[ptEntry + 13] = 8*512;
+
+//Wake up login process
+[ptEntry - 16 + 4] = READY;
+
+//Reset current user field in System status table
+[SYSTEM_STATUS_TABLE] = 0;
+
+//Invoke context_switch
+call MOD_5;
+
+//Does not return otherwise

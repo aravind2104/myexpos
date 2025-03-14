@@ -1,0 +1,9 @@
+//System calls implemented are Newusr, Remusr, Getuname and Getuid
+
+alias userSP R0;
+userSP = SP;
+alias ptEntry R1;
+ptEntry = PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16;
+alias returnAddr R2;
+returnAddr = [PTBR + ((userSP - 1)/512)*2]*512 + (userSP - 1)%512;
+
