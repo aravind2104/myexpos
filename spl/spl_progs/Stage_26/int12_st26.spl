@@ -34,7 +34,7 @@ multipop(R0,R1,R2);
 
 //Obtain entry point IP from header of shell program
 //Place in beginning of stack of shell
-[[PTBR + 16]*512] = [[PTBR + 8]*512 + 1]
+[[PTBR + 16]*512] = [[PTBR + 8]*512 + 1];
 //Reset USERSP field of shell to 4096
 [ptEntry + 13] = 8*512;
 
