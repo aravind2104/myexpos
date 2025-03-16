@@ -14,7 +14,7 @@ alias returnAddr R2;
 returnAddr = [PTBR + ((userSP - 1)/512)*2]*512 + (userSP-1)%512;
 
 //If pid not of login process(1), return -2
-if([SYSTEM_STATUS_TABLE + 1] == 1)then
+if([SYSTEM_STATUS_TABLE + 1] != 1)then
     [ptEntry + 9] = 0;
     [returnAddr] = -2; //Permission Denied
     SP = userSP;

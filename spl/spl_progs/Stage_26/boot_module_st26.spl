@@ -58,6 +58,9 @@ loadi(33,46);
 //INT 16
 loadi(34,47);
 loadi(35,48);
+//INT 17
+loadi(36,49);
+loadi(37,50);
 //Module 0
 loadi(40,53);
 loadi(41,54);
@@ -139,7 +142,6 @@ while(i<MAX_OPENFILE_NUM)do
     [OPEN_FILE_TABLE + i*4 + 1] = 0; //Open Instance Count
     i = i + 1;
 endwhile;
-
 
 //Init Process with PID=1
 PTBR=PAGE_TABLE_BASE+20;

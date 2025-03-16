@@ -1,6 +1,6 @@
 //Logout system call, System Call number 28
 //Can only be invoked from Shell process
-
+breakpoint;
 alias userSP R0;
 userSP = SP;
 alias ptEntry R1;
@@ -14,7 +14,7 @@ returnAddr = [PTBR + ((userSP - 1)/512)*2]*512 + (userSP-1)%512;
 SP = [ptEntry + 11]*512 - 1;
 
 //If current process not shell(PID 2), return -1
-if([SYSTEM_STATUS_TABLE + 1] == 2)then
+if([SYSTEM_STATUS_TABLE + 1] != 2)then
     [ptEntry + 9] = 0;
     [returnAddr] = -1; //Not Shell
     SP = userSP;
