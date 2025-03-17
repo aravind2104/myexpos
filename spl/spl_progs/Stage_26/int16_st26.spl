@@ -1,5 +1,5 @@
 //System calls implemented are Newusr, Remusr, Getuname and Getuid
-
+breakpoint;
 alias userSP R0;
 userSP = SP;
 alias ptEntry R1;
@@ -58,7 +58,7 @@ if(syscallNo == 22)then
     encrypt pass;
     //Set Username and Password Fields
     [USER_TABLE + R5*2] = uName;
-    [USER_TABLE + R5*2] = pass;
+    [USER_TABLE + R5*2 + 1] = pass;
     //Return 0
     [ptEntry + 9] = 0;
     [returnAddr] = 0; //No of users reached limit
@@ -71,6 +71,7 @@ endif;
 //Remusr System call
 if(syscallNo == 23)then
     //Extract arguments
+    [ptEntry + 9] = 23;
     alias uName R3;
     uName = [[PTBR + ((userSP - 4)/512)*2]*512 + (userSP - 4)%512];
     //If current user not root, or current process not shell, return -2
@@ -95,6 +96,7 @@ if(syscallNo == 23)then
         if([USER_TABLE + R4*2] == uName)then
             break;
         endif;
+        R4 = R4 + 1;
     endwhile;
     //If entry not found,return -1
     if(R4 == MAX_USER_NUM)then
@@ -134,7 +136,7 @@ if(syscallNo == 24)then
     alias uName R3;
     uName = [[PTBR + ((userSP - 4)/512)*2]*512 + (userSP - 4)%512];
     alias pass R4;
-    pass = [[PTBR + ((userSP - 4)/512)*2]*512 + (userSP - 4)%512];
+    pass = [[PTBR + ((userSP - 3)/512)*2]*512 + (userSP - 3)%512];
     //Set mode flag
     [ptEntry + 9] = 24;
     //If current process not shell,return -1
@@ -163,18 +165,16 @@ if(syscallNo == 24)then
         ireturn;
     endif;
     //Check if user changing other users, or if not root, if fails return -1
-    if([ptEntry + 3] != utEntry)then
-        if([SYSTEM_STATUS_TABLE] != 1)then
-            [ptEntry + 9] = 0;
-            [returnAddr] = -1; //Permission denied
-            SP = userSP;
-            breakpoint;
-            ireturn;
-        endif;
+    if([ptEntry + 3] != utEntry || [SYSTEM_STATUS_TABLE] != 1)then
+        [ptEntry + 9] = 0;
+        [returnAddr] = -1; //Permission denied
+        SP = userSP;
+        breakpoint;
+        ireturn;
     endif;
     //encrypt the password and set in user table Field
     encrypt pass;
-    [USER_TABLE + utEntry + 1] = pass;
+    [USER_TABLE + utEntry*2 + 1] = pass;
     //Return to user mode and reset flag
     [ptEntry + 9] = 0;
     [returnAddr] = 0; //Success

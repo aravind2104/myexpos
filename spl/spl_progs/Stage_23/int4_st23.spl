@@ -173,6 +173,7 @@ if(syscallNo == 4) then
 
     //Update Root File, by invalidating entry
     [ROOT_FILE + inodeIndex*8] = -1;
+    [ROOT_FILE + inodeIndex*8 + 3] = -1;
 
     //Release the lock on file
     multipush(R1,R2,R3,R4,R7);

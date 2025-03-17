@@ -1,0 +1,46 @@
+load --module 0 ../spl/spl_progs/Stage_24/mod0_st24.xsm
+load --module 1 ../spl/spl_progs/Stage_25/mod1_st25.xsm
+load --module 2 ../spl/spl_progs/Stage_25/mod2_st25.xsm
+load --module 3 ../spl/spl_progs/Stage_25/mod3_st25.xsm
+load --module 4 ../spl/spl_progs/Stage_23/mod4_st23.xsm
+load --module 5 ../spl/spl_progs/Stage_20/mod5_st20.xsm
+load --module 7 ../spl/spl_progs/Stage_26/boot_module_st26.xsm
+load --int=timer ../spl/spl_progs/Stage_14/timer_st14.xsm
+load --int=disk ../spl/spl_progs/Stage_18/int2_disk_st18.xsm
+load --int=console ../spl/spl_progs/Stage_16/int3_console_st16.xsm
+load --int=4 ../spl/spl_progs/Stage_23/int4_st23.xsm
+load --int=5 ../spl/spl_progs/Stage_25/int5_st25.xsm
+load --int=4 ../spl/spl_progs/Stage_23/int4_st23.xsm
+load --int=6 ../spl/spl_progs/Stage_24/int6_st24.xsm
+load --int=7 ../spl/spl_progs/Stage_25/int7_st25.xsm
+load --int=8 ../spl/spl_progs/Stage_24/int8_fork_st24.xsm
+load --int=9 ../spl/spl_progs/Stage_19/int9_exec_st19.xsm
+load --int=10 ../spl/spl_progs/Stage_20/int10_exit_st20.xsm
+load --int=11 ../spl/spl_progs/Stage_21/int11_st21.xsm
+load --int=12 ../spl/spl_progs/Stage_26/int12_st26.xsm
+load --int=13 ../spl/spl_progs/Stage_22/int13_st22.xsm
+load --int=14 ../spl/spl_progs/Stage_22/int14_st22.xsm
+load --int=15 ../spl/spl_progs/Stage_26/int15_shutdown_st26.xsm
+load --int=16 ../spl/spl_progs/Stage_26/int16_st26.xsm
+load --int=17 ../spl/spl_progs/Stage_26/int17_st26.xsm
+load --exhandler ../spl/spl_progs/Stage_19/int0_exception_st19.xsm
+load --idle ../expl/expl_progs/Stage_12/idle.xsm
+load --init ../expl/expl_progs/Stage_26/login.xsm
+load --shell ../expl/expl_progs/Stage_26/shell.xsm
+load --os ../spl/spl_progs/Stage_26/os_startup_st26.xsm
+load --exec ../expl/expl_progs/Stage_23/fileCr.xsm
+load --exec ../expl/expl_progs/Stage_23/fileDlt.xsm
+load --exec ../expl/expl_progs/Stage_24/read.xsm
+load --exec ../expl/expl_progs/Stage_24/test5.xsm
+load --exec ../expl/expl_progs/Stage_25/assg1.xsm
+load --exec ../expl/expl_progs/Stage_25/assg2.xsm
+load --exec ../expl/expl_progs/Stage_25/assg3.xsm
+load --exec ../expl/expl_progs/system_utilities/ls.xsm
+load --exec ../expl/expl_progs/system_utilities/cat.xsm
+load --exec ../expl/expl_progs/system_utilities/cp.xsm
+load --exec ../expl/expl_progs/system_utilities/ru.xsm
+load --exec ../expl/expl_progs/system_utilities/lu.xsm
+load --exec ../expl/expl_progs/system_utilities/rm.xsm
+load --data ../expl/expl_progs/Stage_24/sample.dat
+load --data ../expl/expl_progs/Stage_24/numbers.dat
+exit

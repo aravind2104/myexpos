@@ -70,7 +70,9 @@ endif;
 [SYSTEM_STATUS_TABLE] = R5;
 
 //Invoke context_switch
+multipush(R0,R1,R2,R3,R4,R5);
 call MOD_5;
+multipop(R0,R1,R2,R3,R4,R5);
 
 //Reset mode flag and return to user mode
 [ptEntry + 9] = 0;
