@@ -1,0 +1,80 @@
+//Switch to Kernel Stack
+//Save value of SP to UTPR field of Process table entry of that process
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 13] = SP;
+//Set value of SP to beginning of User Area Page
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 +11]*512 -1;
+//Kernel will be empty when newly entering
+backup;
+
+//Pager Code Starts
+
+//If swapping is initiated
+if([SYSTEM_STATUS_TABLE + 5] != 0)then
+    //if Current Process Swapper Daemon
+    if([SYSTEM_STATUS_TABLE + 1] == 15)then    
+        //Paging Status is SWAP_OUT, then call swap_out()
+        if([SYSTEM_STATUS_TABLE + 5] == SWAP_OUT)then
+            R1 = SWAP_OUT;
+            R2 = [SYSTEM_STATUS_TABLE + 1];
+            call MOD_6;
+        endif;
+        //Paging Status is SWAP_IN, then call swap_in()
+        if([SYSTEM_STATUS_TABLE + 5] == SWAP_IN)then
+            R1 = SWAP_IN;
+            R2 = [SYSTEM_STATUS_TABLE + 1];
+            call MOD_6;
+        endif;
+    endif;
+    //If process is idle
+    //No code required, skip to end to perform context switch
+//Swapping is not on now, check  whether it should be initiated
+else
+    //Check Memory Free Count
+    if([SYSTEM_STATUS_TABLE + 2] < MEM_LOW)then
+        //Set paging status to swap_out
+        [SYSTEM_STATUS_TABLE + 5] = SWAP_OUT;
+    else
+    //if there are swapped out processes
+        if([SYSTEM_STATUS_TABLE + 4] > 0)then
+            //If tick of any process greater than max tick or Mem Free Count sufficient, swap in
+            R1 = 3;
+            while(R1<15)do //Loop from PID=3 to PID=14, Swapper Daemon excluded
+                if([PROCESS_TABLE + R1*16] > MAX_TICK || [SYSTEM_STATUS_TABLE + 2] > MEM_HIGH)then
+                    //Set paging status to SWAP_IN
+                    [SYSTEM_STATUS_TABLE + 5] = SWAP_IN; 
+                    break;
+                endif;
+                R1 = R1 + 1;
+            endwhile;
+        endif;
+    endif;
+endif;
+
+//Pager Code Ends
+
+//Get PID and change state
+alias curentPID R0;
+curentPID = [SYSTEM_STATUS_TABLE + 1];
+[PROCESS_TABLE + 16*curentPID + 4]=READY;
+
+//Loop through process table and increment TICK field
+R0 = 3;
+while(R0<15)do
+    if([PROCESS_TABLE + R0*16 + 4]!=TERMINATED)then
+        [PROCESS_TABLE + R0*16] = [PROCESS_TABLE + R0*16] + 1; 
+    endif;
+    R0 = R0 + 1;
+endwhile;
+
+//Calling Scheduler
+call MOD_5;
+
+//restore register context
+restore;
+//set SP as user stack pointer of new process
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 13];
+//set MODE_FLAG entry of current process to 0
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 0;
+
+breakpoint;
+ireturn;
