@@ -1,0 +1,114 @@
+//Pager Module
+
+breakpoint;
+alias functionNum R1;
+alias currentPid R2;
+
+//Swap Out
+if(functionNum == 1)then
+    //Choose a process to swap out
+    //Priority Wait_process, then wait semaphore, then highest tick
+    alias swapPID R3;
+    swapPID = 3; //Ignore Init and shell
+    alias ptEntry R4;
+    ptEntry = PROCESS_TABLE + swapPID*16;
+    alias semPID R5;
+    semPID = -1;
+    alias highestTick R6;
+    highestTick = -1;
+    alias finalPID R7;
+    finalPID = -1;
+    while(swapPID < 15)do
+        if([ptEntry + 6] == 0 && [ptEntry + 4] == WAIT_PROCESS)then
+            break;
+        endif;
+        if([ptEntry + 6] == 0 && [ptEntry + 4] == WAIT_SEMAPHORE)then
+            semPID = swapPID;
+        endif;
+        if([ptEntry + 6] == 0 && [ptEntry + 4]!=RUNNING && [ptEntry + 4]!=TERMINATED && [ptEntry + 4]!=ALLOCATED)then
+            if([ptEntry] > highestTick)then
+                finalPID = swapPID;
+                highestTick = [ptEntry];
+            endif;
+        endif;
+        swapPID = swapPID + 1;
+        ptEntry = ptEntry + 16;
+    endwhile;
+
+    //If no process in wait_process found
+    if(swapPID == 15)then
+        //Check for wait_semaphore one
+        if(semPID != -1)then
+            swapPID = semPID;
+        else 
+            //Check for finalPID
+            if(finalPID != -1)then
+                swapPID = finalPID;
+            //If no case satisfied set paging status to 0 and return
+            else
+                [SYSTEM_STATUS_TABLE + 5] = 0;
+                breakpoint;
+                return;
+            endif;
+        endif;
+    endif;
+
+    //Set tick field of selected process to 0
+    ptEntry = PROCESS_TABLE + swapPID*16;
+    [ptEntry] = 0;
+
+    //Implementation Hazard: Using while loop to optimize code
+    //Deallocation of code,heap and stack pages
+    alias pageTable R5;
+    pageTable = [ptEntry + 14]; //PTBR
+    R6 = 4;
+    while(R6<20)do //Similar process for Stack and Heap, and different for code pages
+        
+        //Heap(non-shared) and stack
+        if((R6<8 && [pageTable + R6] != -1 && [MEMORY_FREE_LIST + [pageTable + R6]] == 1) || (R6>=16 && [pageTable + R6]!=-1))then
+            //Get a free swap block
+            multipush(R1,R2,R3,R4,R5,R6);
+            R1 = 6;
+            call MOD_2;
+            multipop(R1,R2,R3,R4,R5,R6);
+
+            //Store disk block in DISK map table
+            [DISK_MAP_TABLE + swapPID*10 + (R6/2)] = R0;
+            
+            //Use disk_store to write page to free block found above
+            multipush(R1,R2,R3,R4,R5,R6);
+            R1 = 1; //DISK_STORE
+            R2 = currentPid;
+            R3 = [pageTable + R6];
+            R4 = R0;
+            call MOD_4; //Device Manager
+            multipop(R1,R2,R3,R4,R5,R6);
+        endif;
+
+        //Common process for all three type of pages
+        if([pageTable + R6]!=-1)then //code pages
+            //call release_page() of memory manager Module
+            multipush(R1,R2,R3,R4,R5,R6);
+            R1 = 2;
+            R2 = [pageTable + R6];
+            call MOD_2;
+            multipop(R1,R2,R3,R4,R5,R6);
+            //Invalidate page table entries
+            [pageTable + R6] = -1;
+            [pageTable + R6 + 1] = "0000";
+        endif;
+
+        R6 = R6 + 2;
+    endwhile;
+
+    //Set swap flag field to 1
+    [ptEntry + 6] = 1;
+    //Increment Swap Count and reset Paging status
+    [SYSTEM_STATUS_TABLE + 4] = [SYSTEM_STATUS_TABLE + 4] + 1;
+    [SYSTEM_STATUS_TABLE + 5] = 0;
+
+    breakpoint;
+    return;
+endif;
+
+return;
