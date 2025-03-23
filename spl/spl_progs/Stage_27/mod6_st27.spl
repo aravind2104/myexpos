@@ -111,4 +111,90 @@ if(functionNum == 1)then
     return;
 endif;
 
+if(functionNum == 2)then
+    alias swapPID R3;
+    alias highestTick R4;
+    highestTick = -1;
+    swapPID = -1;
+    R6 = 3;
+    alias ptEntry R5;
+    ptEntry = PROCESS_TABLE + R6*16;
+    //Find swapped process in READY state with highest tick
+    while(R6 < 15)do
+        if([ptEntry + 6]==1 && [ptEntry + 4]==READY)then
+            if([ptEntry]>highestTick)then
+                highestTick = [ptEntry];
+                swapPID = R6;            
+            endif;
+        endif;
+        R6 = R6 + 1;
+        ptEntry = ptEntry + 16;
+    endwhile;
+
+    //If no such process, reset paging status and return
+    if(swapPID==-1)then
+        [SYSTEM_STATUS_TABLE + 5] = 0;
+        breakpoint;
+        return;
+    endif;
+
+    ptEntry = PROCESS_TABLE + swapPID*16;
+    //Set TICK field to 0 of selected process
+    [ptEntry] = 0;
+
+    alias pageTableEntry R6;
+    pageTableEntry = [ptEntry + 14]; //PTBR
+
+    R7 = 4;
+    while(R7 < 20)do
+        if((R7<8 && [DISK_MAP_TABLE + swapPID*10 + R7/2]!=-1) || R7>=16)then //Heap pages or Stack pages
+            //Call get_free_page to allocate memory page
+            multipush(R1,R2,R3,R4,R5,R6,R7);
+            R1 = 1;
+            call MOD_2; //Memory Manager
+            multipop(R1,R2,R3,R4,R5,R6,R7);
+            alias pageNo R8;
+            pageNo = R0;
+
+            //Get disk block number in DISK MAP table
+            alias blockNo R9;
+            blockNo = [DISK_MAP_TABLE + swapPID*10 + R7/2];
+
+            //Use disk_load() to copy heap/stack page to memory 
+            multipush(R1,R2,R3,R4,R5,R6,R7,R8,R9);
+            R1 = 2;
+            R2 = swapPID;
+            R3 = pageNo;
+            R4 = blockNo;
+            call MOD_4; //Device Manager
+            multipop(R1,R2,R3,R4,R5,R6,R7,R8,R9);            
+
+            //Free Swap block by calling release_block()
+            multipush(R2,R3,R5,R6,R7,R8,R9);
+            R1 = 4;
+            R2 = blockNo;
+            R3 = swapPID;
+            call MOD_2; //Memory Manager
+            multipop(R2,R3,R5,R6,R7,R8,R9);
+            
+            //Set corresponding page table entries
+            [pageTableEntry + R7] = pageNo;
+            [pageTableEntry + R7 + 1] = "0110";
+
+            //Invalidate disk map table entries
+            [DISK_MAP_TABLE + swapPID*10 + R7/2] = -1;
+        endif;
+        R7 = R7 + 2;
+    endwhile;
+
+    //Set swap_flag field
+    [ptEntry + 6] = 0;
+    //Decrement swap_count and reset paging_status
+    [SYSTEM_STATUS_TABLE + 4] = [SYSTEM_STATUS_TABLE + 4] - 1;
+    [SYSTEM_STATUS_TABLE + 5] = 0;
+    
+    breakpoint;
+    return;
+endif;
+
 return;

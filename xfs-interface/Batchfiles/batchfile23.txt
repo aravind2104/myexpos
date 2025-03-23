@@ -1,0 +1,23 @@
+load --module 0 ../spl/spl_progs/Stage_23/mod0_st23.xsm
+load --module 1 ../spl/spl_progs/Stage_22/mod1_st22.xsm
+load --module 2 ../spl/spl_progs/Stage_19/mod2_st19.xsm
+load --module 4 ../spl/spl_progs/Stage_23/mod4_st23.xsm
+load --module 5 ../spl/spl_progs/Stage_20/mod5_st20.xsm
+load --module 7 ../spl/spl_progs/Stage_23/boot_module_st23.xsm
+load --int=4 ../spl/spl_progs/Stage_23/int4_st23.xsm
+load --int=6 ../spl/spl_progs/Stage_16/int6_st16.xsm
+load --int=7 ../spl/spl_progs/Stage_15/int7_st15.xsm
+load --int=8 ../spl/spl_progs/Stage_22/int8_fork_st22.xsm
+load --int=9 ../spl/spl_progs/Stage_19/int9_exec_st19.xsm
+load --int=10 ../spl/spl_progs/Stage_20/int10_exit_st20.xsm
+load --int=11 ../spl/spl_progs/Stage_21/int11_st21.xsm
+load --int=13 ../spl/spl_progs/Stage_22/int13_st22.xsm
+load --int=14 ../spl/spl_progs/Stage_22/int14_st22.xsm
+load --int=15 ../spl/spl_progs/Stage_23/int15_shutdown_st23.xsm
+load --exhandler ../spl/spl_progs/Stage_19/int0_exception_st19.xsm
+load --int=timer ../spl/spl_progs/Stage_14/timer_st14.xsm
+load --int=disk ../spl/spl_progs/Stage_18/int2_disk_st18.xsm
+load --int=console ../spl/spl_progs/Stage_16/int3_console_st16.xsm
+load --os ../spl/spl_progs/Stage_18/os_startup_st18.xsm
+load --init ../expl/expl_progs/Stage_21/shell_st21.xsm
+exit

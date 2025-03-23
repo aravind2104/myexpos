@@ -1,0 +1,7 @@
+load --int=timer ../spl/spl_progs/timer_st14.xsm
+load --module 5 ../spl/spl_progs/mod5_st14.xsm
+load --int=10 ../spl/spl_progs/int10_st14.xsm
+load --module 7 ../spl/spl_progs/boot_module_st14.xsm
+load --os ../spl/spl_progs/os_startup_st13.xsm
+load --init ../expl/expl_progs/Stage_14/odd.xsm
+exit

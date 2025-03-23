@@ -1,0 +1,11 @@
+load --module 4 ../spl/spl_progs/Stage_16/mod4_st16.xsm
+load --module 0 ../spl/spl_progs/Stage_15/mod0_st15.xsm
+load --module 7 ../spl/spl_progs/Stage_16/boot_module_st16.xsm
+load --int=console ../spl/spl_progs/Stage_16/int3_console_st16.xsm
+load --int=6 ../spl/spl_progs/Stage_16/int6_st16.xsm
+load --os ../spl/spl_progs/Stage_13/os_startup_st13.xsm
+load --init ../expl/expl_progs/Stage_16/gcd.xsm
+load --int=timer ../spl/spl_progs/Stage_14/timer_st14.xsm
+load --int=7 ../spl/spl_progs/Stage_15/int7_st15.xsm
+load --module 5 ../spl/spl_progs/Stage_14/mod5_st14.xsm
+exit

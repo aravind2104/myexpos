@@ -1,0 +1,6 @@
+load --int=9 ../spl/spl_progs/Stage_17/int9_st17.xsm
+load --module 1 ../spl/spl_progs/Stage_17/mod1_st17.xsm
+load --module 2 ../spl/spl_progs/Stage_17/mod2_st17.xsm
+load --module 7 ../spl/spl_progs/Stage_17/boot_module_st17.xsm
+load --init ../expl/expl_progs/Stage_17/assg1_shell.xsm
+exit

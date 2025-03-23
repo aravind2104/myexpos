@@ -1,0 +1,7 @@
+load --module 7 ../spl/spl_progs/Stage_18/boot_module_st18.xsm
+load --int=disk ../spl/spl_progs/Stage_18/int2_disk_st18.xsm
+load --int=9 ../spl/spl_progs/Stage_18/int9_st18.xsm
+load --module 0 ../spl/spl_progs/Stage_18/mod0_st18.xsm
+load --module 4 ../spl/spl_progs/Stage_18/mod4_st18.xsm
+load --os ../spl/spl_progs/Stage_18/os_startup_st18.xsm
+exit
