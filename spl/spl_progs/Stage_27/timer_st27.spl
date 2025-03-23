@@ -1,4 +1,5 @@
 //Switch to Kernel Stack
+breakpoint;
 //Save value of SP to UTPR field of Process table entry of that process
 [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 13] = SP;
 //Set value of SP to beginning of User Area Page
@@ -39,7 +40,7 @@ else
             //If tick of any process greater than max tick or Mem Free Count sufficient, swap in
             R1 = 3;
             while(R1<15)do //Loop from PID=3 to PID=14, Swapper Daemon excluded
-                if([PROCESS_TABLE + R1*16] > MAX_TICK || [SYSTEM_STATUS_TABLE + 2] > MEM_HIGH)then
+                if([PROCESS_TABLE + 6]==1 && ([PROCESS_TABLE + R1*16] > MAX_TICK || [SYSTEM_STATUS_TABLE + 2] > MEM_HIGH))then
                     //Set paging status to SWAP_IN
                     [SYSTEM_STATUS_TABLE + 5] = SWAP_IN; 
                     break;
@@ -53,9 +54,7 @@ endif;
 //Pager Code Ends
 
 //Get PID and change state
-alias curentPID R0;
-curentPID = [SYSTEM_STATUS_TABLE + 1];
-[PROCESS_TABLE + 16*curentPID + 4]=READY;
+[PROCESS_TABLE + 16*[SYSTEM_STATUS_TABLE + 1] + 4]=READY;
 
 //Loop through process table and increment TICK field
 R0 = 3;

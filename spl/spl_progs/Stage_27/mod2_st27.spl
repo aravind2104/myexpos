@@ -49,7 +49,7 @@ if(functionNum == 3)then
     //Loop through disk free list
     //69 -255 : User Blocks
     R2 = DISK_FREE_AREA; //69
-    while(R2 < DISK_SWAP_AREA - 1)do //DISK_SWAP_AREA = 256
+    while(R2 < DISK_SWAP_AREA)do //DISK_SWAP_AREA = 256
         if([DISK_FREE_LIST + R2] == 0)then
             [DISK_FREE_LIST + R2] = 1;
             R0 = R2;

@@ -30,7 +30,7 @@ begin
         if(flag==1) then
             retcom = exposcall(input, username, password);
             if(retcom < 0) then
-                temp = exposcall("Write",-2, "BAD COMMAND");
+                temp = exposcall("Write",-2, "BAD COMMAND 1");
             else
                 if(input == "Getuid" OR input == "Getuname") then
                     temp = exposcall("Write",-2, retcom);
@@ -48,7 +48,7 @@ begin
             else
                 temp = exposcall("Exec",input);
                 if(temp != 0) then
-                    temp = exposcall("Write",-2, "BAD COMMAND");
+                    temp = exposcall("Write",-2, "BAD COMMAND 2");
                     break;
                 endif;
             endif;

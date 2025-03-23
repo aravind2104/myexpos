@@ -7,12 +7,12 @@ currentPID = [SYSTEM_STATUS_TABLE + 1];
 multipush(BP);
 
 //Get current process table entry
-alias process_table_entry R1;
-process_table_entry = PROCESS_TABLE + currentPID*16;
+alias ptEntry R1;
+ptEntry = PROCESS_TABLE + currentPID*16;
 //Save the SP%512, PTBR and PTLR to the Kernel SP, PTBR and PTLR fields of the Process Table entry of the current process  
-[process_table_entry + 12] = SP%512;
-[process_table_entry + 14] = PTBR;
-[process_table_entry + 15] = PTLR;
+[ptEntry + 12] = SP%512;
+[ptEntry + 14] = PTBR;
+[ptEntry + 15] = PTLR;
 
 alias newPID R2;
 //If Paging is ongoing
@@ -28,9 +28,9 @@ if([SYSTEM_STATUS_TABLE + 5]!=0)then
 else //If paging not going on, normal Round Robin
     //SCheduling algo
     newPID = currentPID+1;
-    newPID = newPID%15; //To avoid swapper daemon
+    newPID = newPID%16; //To avoid swapper daemon
     while(newPID != currentPID) do
-        if(newPID!=0 && [PROCESS_TABLE + newPID*16 + 6] == 0) then //Also check if process is not swapped out
+        if(newPID!=15 && newPID!=0 && [PROCESS_TABLE + newPID*16 + 6] == 0) then //Also check if process is not swapped out
             if([PROCESS_TABLE + newPID*16 + 4]==READY) then
                 break;
             endif;
@@ -39,7 +39,7 @@ else //If paging not going on, normal Round Robin
             endif;
         endif;
         newPID = newPID + 1;
-        newPID = newPID % 15; //To avoid swapper daemon
+        newPID = newPID % 16; //To avoid swapper daemon
     endwhile;
     if(newPID == currentPID) then
         newPID = 0;
@@ -48,25 +48,25 @@ endif;
 
 
 //Set SP,PTBR,PTLR for new process
-alias new_process_table R3;
-new_process_table = PROCESS_TABLE + newPID*16;
-SP = [new_process_table + 11]*512 + [new_process_table+12];
-PTBR = [new_process_table + 14];
-PTLR = [new_process_table + 15];
+alias newPtEntry R3;
+newPtEntry = PROCESS_TABLE + newPID*16;
+SP = [newPtEntry + 11]*512 + [newPtEntry+12];
+PTBR = [newPtEntry + 14];
+PTLR = [newPtEntry + 15];
 //Set pid in System status table
 [SYSTEM_STATUS_TABLE + 1] = newPID;
 
 //If new process is CREATED, then nothing to restore
-if([new_process_table + 4] == CREATED) then
-    [new_process_table + 4] = RUNNING;
-    SP = [new_process_table + 13];
-    [new_process_table + 9] = 0;
-    BP = [[new_process_table + 11]*512];
+if([newPtEntry + 4] == CREATED) then
+    [newPtEntry + 4] = RUNNING;
+    SP = [newPtEntry + 13];
+    [newPtEntry + 9] = 0;
+    BP = [[newPtEntry + 11]*512];
     breakpoint;
     ireturn;
 endif;
 
-[new_process_table + 4] = RUNNING;
+[newPtEntry + 4] = RUNNING;
 
 //restore BP
 multipop(BP);

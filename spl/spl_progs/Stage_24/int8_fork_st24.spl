@@ -117,7 +117,7 @@ while(R4<8) do
         //Increment Process Count
         [SEMAPHORE_TABLE + R6*4 + 1] = [SEMAPHORE_TABLE + R6*4 + 1] + 1; 
     endif;
-    if([R5 == FILE])then
+    if([R5] == FILE)then
         R6 = [R5 + 1];
         //Increment Open Instance Count
         [OPEN_FILE_TABLE + R6*4 + 1] = [OPEN_FILE_TABLE + R6*4 + 1] + 1;
