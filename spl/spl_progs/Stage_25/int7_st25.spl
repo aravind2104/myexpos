@@ -22,12 +22,12 @@ word = [[PTBR + ((userSP-3)/512)*2]*512 + (userSP-3)%512];
 //If word to be written to STDOUT(fileDesc = -2)
 if(fileDesc == -2)then
     //Call terminal_write()
-    multipush(R1,R2,R3,R4);
+    multipush(R1,R2,R3,R4,R8);
     R1 = TERMINAL_WRITE;
     R2 = [SYSTEM_STATUS_TABLE + 1];
     R3 = word;
     call MOD_4;
-    multipop(R1,R2,R3,R4);
+    multipop(R1,R2,R3,R4,R8);
     //rest mode flag and return to user mode
     [ptEntry + 9] = 0;
     [returnAddr] = 0;//Return value
@@ -74,12 +74,12 @@ if([ptEntry + 3]!=ROOT)then
 endif;
 
 //Acquire the lock on the file
-multipush(R1,R2,R3,R4,R5,R6);
+multipush(R1,R2,R3,R4,R5,R6,R8);
 R1 = ACQUIRE_INODE; //function 4
 R2 = inodeIndex;
 R3 = [SYSTEM_STATUS_TABLE + 1];
 call MOD_0;
-multipop(R1,R2,R3,R4,R5,R6);
+multipop(R1,R2,R3,R4,R5,R6,R8);
 
 //If locking fails,return -1
 if(R0 == -1)then
@@ -96,12 +96,12 @@ LSeek = [OPEN_FILE_TABLE + oftEntry*4 + 2];
 
 //If Lseek same as MAX_FILE_SIZE, release_inode and return -2
 if(LSeek >= MAX_FILE_SIZE)then
-    multipush(R1,R2,R3,R4,R5,R6,R7);
+    multipush(R1,R2,R3,R4,R5,R6,R7,R8);
     R1 = RELEASE_INODE; //function 5 
     R2 = inodeIndex;
     R3 = [SYSTEM_STATUS_TABLE + 1];
     call MOD_0;
-    multipop(R1,R2,R3,R4,R5,R6,R7);
+    multipop(R1,R2,R3,R4,R5,R6,R7,R8);
     [ptEntry + 9] = 0;
     [returnAddr] = -2;//Return value
     SP = userSP;
@@ -112,18 +112,18 @@ endif;
 //If Lseek multiple of 512 and same as File size in inode table
 if(LSeek%512==0 && LSeek==[INODE_TABLE + inodeIndex*16 + 2])then
     //Get a free disk block
-    multipush(R1,R2,R3,R4,R5,R6,R7);
+    multipush(R1,R2,R3,R4,R5,R6,R7,R8);
     R1 = GET_FREE_BLOCK; 
     call MOD_2;
-    multipop(R1,R2,R3,R4,R5,R6,R7);
+    multipop(R1,R2,R3,R4,R5,R6,R7,R8);
     //If no free block,release_inode() and return -2
     if(R0 == -1)then
-        multipush(R1,R2,R3,R4,R5,R6,R7);
+        multipush(R1,R2,R3,R4,R5,R6,R7,R8);
         R1 = RELEASE_INODE; //function 5 
         R2 = inodeIndex;
         R3 = [SYSTEM_STATUS_TABLE + 1];
         call MOD_0;
-        multipop(R1,R2,R3,R4,R5,R6,R7);
+        multipop(R1,R2,R3,R4,R5,R6,R7,R8);
         [ptEntry + 9] = 0;
         [returnAddr] = -2;//Return value
         SP = userSP;
@@ -134,13 +134,13 @@ if(LSeek%512==0 && LSeek==[INODE_TABLE + inodeIndex*16 + 2])then
     [INODE_TABLE + inodeIndex*16 + 8 + (LSeek/512)] = R0;
 endif;
 
-multipush(R1,R2,R3,R4,R5,R6,R7);
+multipush(R1,R2,R3,R4,R5,R6,R7,R8);
 R1 = BUFFERED_WRITE;
 R2 = [INODE_TABLE + inodeIndex*16 + 8 + (LSeek/512)];
 R3 = LSeek%512;
 R4 = word;
 call MOD_3;
-multipop(R1,R2,R3,R4,R5,R6,R7);
+multipop(R1,R2,R3,R4,R5,R6,R7,R8);
 
 //If Lseek equals file size, increment file size in inode table and root file memory copy
 if(LSeek==[INODE_TABLE + inodeIndex*16 + 2])then
@@ -152,12 +152,12 @@ endif;
 [OPEN_FILE_TABLE + oftEntry*4 + 2] = [OPEN_FILE_TABLE + oftEntry*4 + 2] + 1;
 
 //Release lock on file
-multipush(R1,R2,R3,R4,R5,R6,R7);
+multipush(R1,R2,R3,R4,R5,R6,R7,R8);
 R1 = RELEASE_INODE; //function 5 
 R2 = inodeIndex;
 R3 = [SYSTEM_STATUS_TABLE + 1];
 call MOD_0;
-multipop(R1,R2,R3,R4,R5,R6,R7);
+multipop(R1,R2,R3,R4,R5,R6,R7,R8);
 
 //Swtich back to user mode
 [ptEntry + 9] = 0;

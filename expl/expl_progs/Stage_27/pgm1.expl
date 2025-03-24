@@ -62,6 +62,7 @@ begin
 
         temp=exposcall("Close", fdread);
         temp=exposcall("Close", fdwrite);
+        temp=exposcall("Write",-2,pid);
     else
         temp=exposcall("Write", -2, "OPEN FAIL");
     endif;
